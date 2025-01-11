@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Grok working with Chrome</title>
+    <title>Grok everywhere</title>
     <link rel="stylesheet" href="styles/main.css">
     <link rel="stylesheet" href="styles/conversation.css">
     <style>
@@ -117,12 +117,14 @@
             background-color: var(--background-secondary);
             border-radius: 20px;
             position: relative;
+            display: flex;
+            align-items: center;
         }
 
         #message-input {
             width: 100%;
             resize: none;
-            padding: 8px 40px 8px 48px;
+            padding: 14px 40px 14px 48px;
             background-color: transparent;
             border: none;
             font-family: inherit;
@@ -132,9 +134,11 @@
             margin: 0;
             overflow-y: hidden;
             outline: none !important;
-            min-height: 20px;
+            min-height: 24px;
             box-sizing: border-box;
             font-weight: 400;
+            display: block;
+            align-self: center;
         }
 
         #message-input:focus {
@@ -304,7 +308,7 @@
             <div id="api-key-missing">Please set your xAI API key in the extension options</div>
             <textarea id="message-input" rows="1" placeholder="Ask anything"></textarea>
             <button class="image-button">
-                <img src="icons/chrome.png" width="24" height="24" />
+                <img src="icons/grok.png" width="24" height="24" />
             </button>
             <button class="send-button">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
