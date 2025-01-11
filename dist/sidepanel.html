@@ -37,7 +37,7 @@
             padding: 0;
             padding-bottom: 100px; 
             background-color: var(--background-primary);
-            margin-top: 72px;
+            margin-top: 88px;
         }
 
         /* Message styles */
@@ -58,16 +58,11 @@
             padding: 0.5rem 0;
         }
 
-        .message-wrapper.user .message {
-            justify-content: flex-end;
-        }
-
         .message-wrapper.user .message-content {
-            background-color: var(--background-secondary);
-            border-radius: 20px;
+            background-color: transparent;
             padding: 12px;
             max-width: 600px;
-            margin-left: auto;
+            font-weight: bold;
         }
 
         .message-wrapper.assistant .message-content {
@@ -75,19 +70,6 @@
             border-radius: 20px;
             padding: 12px;
             max-width: 600px;
-        }
-
-        .avatar {
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            flex-shrink: 0;
-            background-color: var(--link-color);
-            color: white;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 16px;
         }
 
         .message-content {
@@ -106,8 +88,12 @@
         /* Image in message */
         .message-content img {
             max-width: 100%;
-            border-radius: 0.375rem;
-            margin: 0.5rem 0;
+            border-radius: 8px !important;
+            margin: 8px 0 !important;
+            border: 1px solid white !important;
+            height: auto !important;
+            width: 400px !important;
+            display: block !important;
         }
 
         /* Input container */
@@ -136,7 +122,7 @@
         #message-input {
             width: 100%;
             resize: none;
-            padding: 8px 40px 8px 40px;
+            padding: 8px 40px 8px 48px;
             background-color: transparent;
             border: none;
             font-family: inherit;

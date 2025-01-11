@@ -80,7 +80,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Set image button as active by default since auto mode is enabled
     imageButton.classList.add('active');
     // Set initial placeholder text
-    messageInput.placeholder = 'Message Grok + image...';
+    messageInput.placeholder = 'Ask anything (with context)';
 
     // Connect to the background script and handle reconnection
     function connectToBackground() {
@@ -162,7 +162,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             // Turning off auto mode
             clearAutoMode();
             imageButton.classList.remove('active');
-            messageInput.placeholder = 'Message Grok...';
+            messageInput.placeholder = 'Ask anything';
         } else if (isShortcutMode) {
             // Cancel shortcut mode
             clearShortcutMode();
@@ -171,7 +171,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             autoImageMode = true;
             isShortcutMode = false;
             imageButton.classList.add('active');
-            messageInput.placeholder = 'Message Grok (+ image)...';
+            messageInput.placeholder = 'Ask anything (with context)';
         }
     });
 
@@ -335,38 +335,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const messageDiv = document.createElement('div');
         messageDiv.className = 'message';
 
-        // Add avatar for assistant messages
-        if (!isUser) {
-            const avatarDiv = document.createElement('div');
-            avatarDiv.className = 'avatar';
-            avatarDiv.style.position = 'relative';
-            avatarDiv.style.display = 'flex';
-            avatarDiv.style.alignItems = 'center';
-            avatarDiv.style.justifyContent = 'center';
-            avatarDiv.style.backgroundColor = 'transparent';
-
-            // Grok icon (bottom layer)
-            const avatarImg = document.createElement('img');
-            avatarImg.src = 'icons/avatar.png'; // Chat avatar icon
-            avatarImg.style.width = '100%';
-            avatarImg.style.height = '100%';
-            avatarImg.style.objectFit = 'contain';
-            avatarDiv.appendChild(avatarImg);
-
-            // Grey circle overlay (top layer)
-            const circleDiv = document.createElement('div');
-            circleDiv.style.position = 'absolute';
-            circleDiv.style.top = '-0.5px';
-            circleDiv.style.left = '-0.5px';
-            circleDiv.style.right = '-0.5px';
-            circleDiv.style.bottom = '-0.5px';
-            circleDiv.style.border = '0.5px solid #acacbe';
-            circleDiv.style.borderRadius = '50%';
-            circleDiv.style.pointerEvents = 'none';
-            avatarDiv.appendChild(circleDiv);
-
-            messageDiv.appendChild(avatarDiv);
-        }
+        // Avatar removed for Grok-like UI
 
         const contentDiv = document.createElement('div');
         contentDiv.className = 'message-content';
