@@ -217,51 +217,58 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     async function sendMessage(message, screenshot = null) {
-        const messages = [...conversationHistory];
-        
-        if (screenshot) {
-            messages.push({
-                role: 'user',
-                content: [
-                    {
-                        type: 'text',
-                        text: 'This is a screenshot of my current browser view:'
-                    },
-                    {
-                        type: 'image_url',
-                        image_url: {
-                            url: screenshot
-                        }
-                    }
-                ]
-            });
-        }
-        
-        messages.push({
-            role: 'user',
-            content: message
-        });
-
+        // Add message to UI first
         addMessage(message, true, screenshot);
+        
+        // Add to conversation history
         conversationHistory.push({
             content: message,
             isUser: true,
             screenshot: screenshot
         });
-        chrome.storage.local.set({ conversationHistory });
+        await chrome.storage.local.set({ conversationHistory });
 
+        // Get reply
         const reply = await fetchReply(message, screenshot);
+        
+        // Add reply to conversation history
         conversationHistory.push({
             content: reply,
             isUser: false
         });
-        chrome.storage.local.set({ conversationHistory });
+        await chrome.storage.local.set({ conversationHistory });
 
+        // Add reply to UI
         addMessage(reply, false);
     }
 
     async function fetchReply(message, screenshot) {
         try {
+            const messages = [];
+            
+            if (screenshot) {
+                messages.push({
+                    role: 'user',
+                    content: [
+                        {
+                            type: 'text',
+                            text: 'This is a screenshot of my current browser view:'
+                        },
+                        {
+                            type: 'image_url',
+                            image_url: {
+                                url: screenshot
+                            }
+                        }
+                    ]
+                });
+            }
+            
+            messages.push({
+                role: 'user',
+                content: message
+            });
+
             const response = await fetch('https://api.x.ai/v1/chat/completions', {
                 method: 'POST',
                 headers: {
@@ -270,27 +277,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 },
                 body: JSON.stringify({
                     model: 'gpt-4o-mini',
-                    messages: [
-                        {
-                            role: 'user',
-                            content: [
-                                {
-                                    type: 'text',
-                                    text: 'This is a screenshot of my current browser view:'
-                                },
-                                {
-                                    type: 'image_url',
-                                    image_url: {
-                                        url: screenshot
-                                    }
-                                }
-                            ]
-                        },
-                        {
-                            role: 'user',
-                            content: message
-                        }
-                    ],
+                    messages: messages,
                     temperature: 0.7,
                     max_tokens: 4096
                 })
