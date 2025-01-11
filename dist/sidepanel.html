@@ -37,7 +37,7 @@
             padding: 0;
             padding-bottom: 100px; 
             background-color: var(--background-primary);
-            margin-top: 52px;
+            margin-top: 72px;
         }
 
         /* Message styles */
@@ -248,7 +248,11 @@
         }
 
         #api-key-input.saved {
-            -webkit-text-security: disc;
+            color: var(--text-secondary);
+        }
+
+        #api-key-input.saved::placeholder {
+            content: "API key saved";
         }
 
         #save-api-key {

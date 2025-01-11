@@ -16,7 +16,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     apiKey = result.xaiApiKey;
     
     if (apiKey) {
-        apiKeyInput.value = apiKey;
+        apiKeyInput.value = 'API key saved';
         apiKeyInput.classList.add('saved');
         saveApiKeyButton.classList.add('active');
         messageInput.disabled = false;
@@ -25,6 +25,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // Handle API key input and save
+    apiKeyInput.addEventListener('focus', () => {
+        if (apiKey && apiKeyInput.classList.contains('saved')) {
+            apiKeyInput.value = apiKey;
+        }
+    });
+
+    apiKeyInput.addEventListener('blur', () => {
+        if (apiKey && apiKeyInput.classList.contains('saved')) {
+            apiKeyInput.value = 'API key saved';
+        }
+    });
+
     apiKeyInput.addEventListener('input', async () => {
         const newValue = apiKeyInput.value.trim();
         
@@ -57,7 +69,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (newApiKey) {
                 await chrome.storage.local.set({ xaiApiKey: newApiKey });
                 apiKey = newApiKey;
-                apiKeyInput.value = newApiKey;
+                apiKeyInput.value = 'API key saved';
                 apiKeyInput.classList.add('saved');
                 saveApiKeyButton.classList.add('active');
                 messageInput.disabled = false;
