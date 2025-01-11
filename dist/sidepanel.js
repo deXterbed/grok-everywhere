@@ -244,7 +244,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     async function fetchReply(message, screenshot) {
         try {
-            const messages = [];
+            const messages = [
+                {
+                    role: 'system',
+                    content: 'You are Grok, a helpful AI assistant created by xAI.'
+                }
+            ];
             
             if (screenshot) {
                 messages.push({
@@ -279,7 +284,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     'Authorization': `Bearer ${apiKey}`
                 },
                 body: JSON.stringify({
-                    model: 'gpt-4o-mini',
+                    model: 'grok-2-vision-1212',
                     messages: messages,
                     temperature: 0.7,
                     max_tokens: 4096
