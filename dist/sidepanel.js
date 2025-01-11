@@ -12,8 +12,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     let port = null; // Store port at module level
 
     // Load API key
-    const result = await chrome.storage.local.get(['openaiApiKey']);
-    apiKey = result.openaiApiKey;
+    const result = await chrome.storage.local.get(['xaiApiKey']);
+    apiKey = result.xaiApiKey;
     
     if (apiKey) {
         apiKeyInput.value = apiKey;
@@ -35,7 +35,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // If the input is empty, remove the API key from storage
         if (!newValue) {
-            await chrome.storage.local.remove('openaiApiKey');
+            await chrome.storage.local.remove('xaiApiKey');
             apiKey = null;
         }
 
@@ -45,7 +45,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     saveApiKeyButton.addEventListener('click', async () => {
         if (saveApiKeyButton.classList.contains('active')) {
             // If button is active, clicking it should delete the API key
-            await chrome.storage.local.remove('openaiApiKey');
+            await chrome.storage.local.remove('xaiApiKey');
             apiKey = null;
             apiKeyInput.value = '';
             apiKeyInput.classList.remove('saved');
@@ -55,7 +55,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             // If button is not active, save the new API key
             const newApiKey = apiKeyInput.value.trim();
             if (newApiKey) {
-                await chrome.storage.local.set({ openaiApiKey: newApiKey });
+                await chrome.storage.local.set({ xaiApiKey: newApiKey });
                 apiKey = newApiKey;
                 apiKeyInput.value = newApiKey;
                 apiKeyInput.classList.add('saved');
@@ -68,7 +68,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Set image button as active by default since auto mode is enabled
     imageButton.classList.add('active');
     // Set initial placeholder text
-    messageInput.placeholder = 'Message ChatGPT + image...';
+    messageInput.placeholder = 'Message Grok + image...';
 
     // Connect to the background script and handle reconnection
     function connectToBackground() {
@@ -150,7 +150,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             // Turning off auto mode
             clearAutoMode();
             imageButton.classList.remove('active');
-            messageInput.placeholder = 'Message ChatGPT...';
+            messageInput.placeholder = 'Message Grok...';
         } else if (isShortcutMode) {
             // Cancel shortcut mode
             clearShortcutMode();
@@ -159,7 +159,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             autoImageMode = true;
             isShortcutMode = false;
             imageButton.classList.add('active');
-            messageInput.placeholder = 'Message ChatGPT (+ image)...';
+            messageInput.placeholder = 'Message Grok (+ image)...';
         }
     });
 
@@ -262,7 +262,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     async function fetchReply(message, screenshot) {
         try {
-            const response = await fetch('https://api.openai.com/v1/chat/completions', {
+            const response = await fetch('https://api.x.ai/v1/chat/completions', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -326,7 +326,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             avatarDiv.style.justifyContent = 'center';
             avatarDiv.style.backgroundColor = 'transparent';
 
-            // ChatGPT icon (bottom layer)
+            // Grok icon (bottom layer)
             const avatarImg = document.createElement('img');
             avatarImg.src = 'icons/avatar.png'; // Chat avatar icon
             avatarImg.style.width = '100%';

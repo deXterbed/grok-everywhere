@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "ChatGPT Work With Chrome",
+  "name": "Grok Work With Chrome",
   "version": "1.0",
-  "description": "ChatGPT in your browser sidepanel",
+  "description": "Grok in your browser sidepanel",
   "permissions": [
     "sidePanel",
     "storage",
@@ -12,12 +12,12 @@
     "windows"
   ],
   "action": {
-    "default_title": "Open ChatGPT Work With Chrome",
+    "default_title": "Open Grok Work With Chrome",
     "default_icon": {
-      "16": "icons/icon.png",
-      "32": "icons/icon.png",
-      "48": "icons/icon.png",
-      "128": "icons/icon.png"
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
     }
   },
   "side_panel": {
@@ -39,17 +39,17 @@
         "default": "Ctrl+Shift+S",
         "mac": "Command+Shift+S"
       },
-      "description": "Take a screenshot and send to ChatGPT Work With Chrome"
+      "description": "Take a screenshot and send to Grok Work With Chrome"
     }
   },
   "icons": {
-    "16": "icons/icon.png",
-    "32": "icons/icon.png",
-    "48": "icons/icon.png",
-    "128": "icons/icon.png"
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
   },
   "host_permissions": [
-    "https://api.openai.com/*",
+    "https://api.x.ai/*",
     "<all_urls>"
   ]
 }
