@@ -64,7 +64,7 @@
 
         .message-wrapper.user .message-content {
             background-color: var(--background-secondary);
-            border-radius: 8px;
+            border-radius: 12px;
             padding: 12px;
             max-width: 600px;
             margin-left: auto;
@@ -72,7 +72,7 @@
 
         .message-wrapper.assistant .message-content {
             background-color: var(--background-secondary);
-            border-radius: 8px;
+            border-radius: 12px;
             padding: 12px;
             max-width: 600px;
         }
@@ -170,22 +170,6 @@
             font-size: 0.875rem;
             width: 100%;
             max-width: 48rem;
-        }
-
-        .disclaimer {
-            text-align: center;
-            color: var(--text-secondary);
-            font-size: 0.75rem;
-            width: 100%;
-            max-width: 48rem;
-            height: 24px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background-color: var(--background-primary);
-            line-height: 1rem;
-            position: relative;
-            z-index: 10;
         }
 
         .image-button {
@@ -289,7 +273,7 @@
 </head>
 <body>
     <div id="api-key-section">
-        <input type="text" id="api-key-input" placeholder="xAI API Key">
+        <input type="text" id="api-key-input" placeholder="Enter xAI API Key (x.ai)">
         <button id="save-api-key" title="Save API Key">
             <img src="icons/save.svg" width="20" height="20" />
         </button>
@@ -299,7 +283,7 @@
     <div id="input-container">
         <div class="input-wrapper">
             <div id="api-key-missing">Please set your xAI API key in the extension options</div>
-            <textarea id="message-input" rows="1" placeholder="Message Grok..."></textarea>
+            <textarea id="message-input" rows="1" placeholder="Ask anything"></textarea>
             <button class="image-button">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path d="M19 3H5C3.89543 3 3 3.89543 3 5V19C3 20.1046 3.89543 21 5 21H19C20.1046 21 21 20.1046 21 19V5C21 3.89543 20.1046 3 19 3Z" stroke="inherit" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -308,10 +292,6 @@
                 </svg>
             </button>
         </div>
-    </div>
-
-    <div class="disclaimer">
-        Grok can make mistakes. Check important info.
     </div>
 
     <script src="sidepanel.js"></script>
