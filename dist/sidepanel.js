@@ -175,43 +175,53 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
+    // Function to handle message sending
+    async function handleMessageSend() {
+        const message = messageInput.value.trim();
+        if (message) {
+            messageInput.value = '';
+            
+            let screenshotToSend = null;
+            let wasShortcutMode = isShortcutMode;
+            
+            if (autoImageMode) {
+                // Auto mode: take new screenshot
+                screenshotToSend = await takeScreenshot();
+                lastAutoScreenshot = screenshotToSend;
+            } else if (isShortcutMode && currentScreenshot) {
+                // Shortcut mode: use existing screenshot once
+                screenshotToSend = currentScreenshot;
+                // Clear shortcut mode immediately
+                clearShortcutMode();
+            }
+            
+            try {
+                await sendMessage(message, screenshotToSend);
+            } catch (error) {
+                // If sending fails and we were in shortcut mode, restore the screenshot
+                if (wasShortcutMode && screenshotToSend) {
+                    currentScreenshot = screenshotToSend;
+                    isShortcutMode = true;
+                    imageButton.classList.add('active');
+                }
+                throw error;
+            } finally {
+                messageInput.focus();
+            }
+        }
+    }
+
+    // Handle Enter key press
     messageInput.addEventListener('keypress', async (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
-            const message = messageInput.value.trim();
-            if (message) {
-                messageInput.value = '';
-                
-                let screenshotToSend = null;
-                let wasShortcutMode = isShortcutMode;
-                
-                if (autoImageMode) {
-                    // Auto mode: take new screenshot
-                    screenshotToSend = await takeScreenshot();
-                    lastAutoScreenshot = screenshotToSend;
-                } else if (isShortcutMode && currentScreenshot) {
-                    // Shortcut mode: use existing screenshot once
-                    screenshotToSend = currentScreenshot;
-                    // Clear shortcut mode immediately
-                    clearShortcutMode();
-                }
-                
-                try {
-                    await sendMessage(message, screenshotToSend);
-                } catch (error) {
-                    // If sending fails and we were in shortcut mode, restore the screenshot
-                    if (wasShortcutMode && screenshotToSend) {
-                        currentScreenshot = screenshotToSend;
-                        isShortcutMode = true;
-                        imageButton.classList.add('active');
-                    }
-                    throw error;
-                } finally {
-                    messageInput.focus();
-                }
-            }
+            await handleMessageSend();
         }
     });
+
+    // Handle send button click
+    const sendButton = document.querySelector('.send-button');
+    sendButton.addEventListener('click', handleMessageSend);
 
     // Listen for screenshot messages (from shortcut)
     chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
