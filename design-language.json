@@ -1,0 +1,92 @@
+{
+    "designSystem": {
+      "name": "X/Twitter Grok Interface",
+      "colorScheme": {
+        "primary": "Dark theme",
+        "background": "Black/Very dark gray",
+        "elements": {
+          "buttons": "Dark gray (#2F3336)",
+          "text": "White",
+          "accents": "Blue (#1D9BF0)"
+        }
+      },
+      "navigationStructure": {
+        "type": "Left sidebar",
+        "elements": [
+          "Home",
+          "Explore",
+          "Notifications",
+          "Messages",
+          "Grok",
+          "Premium",
+          "Communities",
+          "Verified Orgs",
+          "Community Notes",
+          "Profile",
+          "More"
+        ],
+        "primaryCTA": {
+          "position": "Bottom of sidebar",
+          "element": "Post button",
+          "style": "White rounded button"
+        }
+      },
+      "mainInterface": {
+        "header": {
+          "title": "Grok",
+          "subtitle": "Grok can make mistakes. Verify its outputs.",
+          "searchBar": {
+            "style": "Rounded dark gray input field",
+            "placeholder": "Ask anything",
+            "icon": "Microphone"
+          }
+        },
+        "quickActions": {
+          "layout": "Grid of 4 buttons",
+          "buttons": [
+            {
+              "text": "Tell me a fun fact",
+              "icon": "Book"
+            },
+            {
+              "text": "Give me a workout plan",
+              "icon": "Health/Activity"
+            },
+            {
+              "text": "Give me a recipe for...",
+              "icon": "Food/Cooking"
+            },
+            {
+              "text": "Ask me a trivia question",
+              "icon": "Smile"
+            }
+          ]
+        },
+        "visualContent": {
+          "layout": "2-column grid",
+          "cards": [
+            {
+              "image": "Northern lights landscape",
+              "caption": "Admiring northern lights"
+            },
+            {
+              "image": "Robot in flower field",
+              "caption": "A robot in a flower field"
+            }
+          ]
+        }
+      },
+      "typography": {
+        "fontFamily": "System default (SF Pro or similar)",
+        "hierarchy": {
+          "headers": "Bold",
+          "bodyText": "Regular",
+          "buttons": "Medium weight"
+        }
+      },
+      "spacing": {
+        "type": "Consistent padding and margins",
+        "layout": "Clean with good whitespace between elements"
+      }
+    }
+  }
