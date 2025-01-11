@@ -266,7 +266,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             
             messages.push({
                 role: 'user',
-                content: message
+                content: [{
+                    type: 'text',
+                    text: message
+                }]
             });
 
             const response = await fetch('https://api.x.ai/v1/chat/completions', {
@@ -283,16 +286,28 @@ document.addEventListener('DOMContentLoaded', async () => {
                 })
             });
 
+            if (!response.ok) {
+                const errorData = await response.text();
+                let errorMessage;
+                try {
+                    const errorJson = JSON.parse(errorData);
+                    errorMessage = errorJson.error?.message || 'API request failed';
+                } catch {
+                    errorMessage = errorData || `API request failed with status ${response.status}`;
+                }
+                throw new Error(errorMessage);
+            }
+
             const data = await response.json();
-            
-            if (data.error) {
-                throw new Error(data.error.message);
+            if (!data.choices?.[0]?.message?.content) {
+                throw new Error('Invalid response format from API');
             }
 
             return data.choices[0].message.content;
         } catch (error) {
-            addMessage(`Error: ${error.message}`, false);
-            throw error; // Re-throw to handle in the caller
+            const errorMessage = error.message || 'An unknown error occurred';
+            addMessage(`Error: ${errorMessage}`, false);
+            throw error;
         }
     }
 
