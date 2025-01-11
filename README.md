@@ -2,6 +2,8 @@
 
 A Chrome extension that puts Grok AI in your browser's side panel. Chat with Grok while browsing, share screenshots, and get instant help with any webpage.
 
+<img width="1552" alt="Screenshot 2025-01-11 at 16 41 11" src="https://github.com/user-attachments/assets/ba1d45a7-49b3-4fc0-a706-17582c72fdc6" />
+
 ## Features
 
 - Access Grok directly from your browser's side panel
