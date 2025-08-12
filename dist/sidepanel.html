@@ -150,6 +150,12 @@
         outline: none;
       }
 
+      #message-input:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        background-color: rgba(32, 32, 32, 0.5);
+      }
+
       #message-input::placeholder {
         color: var(--text-secondary);
       }
@@ -252,21 +258,148 @@
         stroke: var(--text-primary) !important;
       }
 
-      /* Send button loading state */
+      /* Enhanced loading states */
+      .loading {
+        opacity: 0.6;
+        pointer-events: none;
+      }
+
       .send-button.loading {
-        animation: pulse 1.5s ease-in-out infinite;
+        position: relative;
+        overflow: hidden;
       }
 
-      .send-button.loading path {
-        stroke: var(--text-secondary) !important;
+      .send-button.loading svg {
+        opacity: 0;
       }
 
-      /* API Key section */
+      .send-button.loading::after {
+        content: "";
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 16px;
+        height: 16px;
+        margin: -8px 0 0 -8px;
+        border: 2px solid transparent;
+        border-top: 2px solid currentColor;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+      }
+
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+
+      /* Enhanced typing indicator */
+      .typing-indicator {
+        display: none;
+        padding: 0.25rem 1rem;
+        background-color: var(--background-primary);
+        animation: slideInUp 0.3s ease-out;
+        position: relative;
+        z-index: 10;
+      }
+
+      @keyframes slideInUp {
+        from {
+          opacity: 0;
+          transform: translateY(20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .typing-indicator .message {
+        max-width: 48rem;
+        margin: 0 auto;
+        display: flex;
+        gap: 1rem;
+        padding: 0.25rem 0;
+      }
+
+      .typing-indicator .message-content {
+        background-color: var(--background-secondary);
+        border-radius: 20px;
+        padding: 12px;
+        max-width: 600px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        animation: typingPulse 2s ease-in-out infinite;
+      }
+
+      @keyframes typingPulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.8;
+        }
+      }
+
+      /* Context mode loading indicators */
+      .context-loading {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 4px 8px;
+        background-color: rgba(64, 64, 64, 0.8);
+        border-radius: 12px;
+        font-size: 11px;
+        color: var(--text-secondary);
+        margin-bottom: 8px;
+      }
+
+      .context-loading::before {
+        content: "";
+        width: 12px;
+        height: 12px;
+        border: 2px solid transparent;
+        border-top: 2px solid currentColor;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+      }
+
+      /* Input container loading state */
+      #input-container.loading {
+        position: relative;
+      }
+
+      #input-container.loading::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(0, 0, 0, 0.3);
+        border-radius: 8px;
+        pointer-events: none;
+      }
+
+      /* API Key section styles */
       #api-key-section {
         flex: 1;
         padding: 10px;
         display: flex;
         align-items: center;
+      }
+
+      #api-key-input-container {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        width: 100%;
       }
 
       #api-key-input {
@@ -282,10 +415,6 @@
 
       #api-key-input.saved {
         color: var(--text-secondary);
-      }
-
-      #api-key-input.saved::placeholder {
-        content: "API key saved";
       }
 
       #save-api-key {
@@ -316,92 +445,61 @@
         height: 20px;
       }
 
-      /* Loading states */
+      /* Enhanced loading states with better visibility */
       .loading {
         opacity: 0.6;
         pointer-events: none;
+        position: relative;
       }
 
-      .loading .send-button {
-        animation: pulse 1.5s ease-in-out infinite;
+      .send-button.loading {
+        position: relative;
+        overflow: hidden;
+        background-color: rgba(64, 64, 64, 0.8) !important;
       }
 
-      @keyframes pulse {
-        0%,
-        100% {
-          opacity: 1;
-        }
-        50% {
-          opacity: 0.5;
-        }
+      .send-button.loading svg {
+        opacity: 0;
       }
 
-      /* Typing indicator */
-      .typing-indicator {
-        display: none;
-        padding: 0.25rem 1rem;
-        background-color: var(--background-primary);
+      .send-button.loading::after {
+        content: "";
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 16px;
+        height: 16px;
+        margin: -8px 0 0 -8px;
+        border: 2px solid transparent;
+        border-top: 2px solid currentColor;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
       }
 
-      .typing-indicator .message {
-        max-width: 48rem;
-        margin: 0 auto;
-        display: flex;
-        gap: 1rem;
-        padding: 0.25rem 0;
-      }
-
-      .typing-indicator .message-content {
-        background-color: var(--background-secondary);
-        border-radius: 20px;
-        padding: 12px;
-        max-width: 600px;
-        display: flex;
+      /* Make context loading more visible */
+      .context-loading {
+        position: relative;
+        display: inline-flex;
         align-items: center;
         gap: 8px;
+        padding: 6px 12px;
+        background-color: rgba(64, 64, 64, 0.9);
+        border-radius: 12px;
+        font-size: 12px;
+        color: var(--text-primary);
+        margin-bottom: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
       }
 
-      .typing-dots {
-        display: flex;
-        gap: 4px;
-      }
-
-      .typing-dot {
-        width: 8px;
-        height: 8px;
-        background-color: var(--text-secondary);
+      .context-loading::before {
+        content: "";
+        width: 12px;
+        height: 12px;
+        border: 2px solid transparent;
+        border-top: 2px solid currentColor;
         border-radius: 50%;
-        animation: typing-bounce 1.4s ease-in-out infinite both;
-      }
-
-      .typing-dot:nth-child(1) {
-        animation-delay: -0.32s;
-      }
-      .typing-dot:nth-child(2) {
-        animation-delay: -0.16s;
-      }
-      .typing-dot:nth-child(3) {
-        animation-delay: 0s;
-      }
-
-      @keyframes typing-bounce {
-        0%,
-        80%,
-        100% {
-          transform: scale(0.8);
-          opacity: 0.5;
-        }
-        40% {
-          transform: scale(1);
-          opacity: 1;
-        }
-      }
-
-      /* Model indicator during typing */
-      .typing-model-indicator {
-        font-size: 0.75em;
-        color: var(--text-secondary);
-        font-style: italic;
+        animation: spin 1s linear infinite;
       }
     </style>
   </head>
@@ -464,20 +562,6 @@
     </div>
 
     <div id="chat-container"></div>
-
-    <!-- Typing indicator -->
-    <div id="typing-indicator" class="typing-indicator">
-      <div class="message">
-        <div class="message-content">
-          <div class="typing-dots">
-            <div class="typing-dot"></div>
-            <div class="typing-dot"></div>
-            <div class="typing-dot"></div>
-          </div>
-          <span class="typing-model-indicator">Grok is thinking...</span>
-        </div>
-      </div>
-    </div>
 
     <div id="input-container">
       <!-- Model badge -->

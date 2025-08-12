@@ -139,14 +139,40 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           tabs[0].id,
           { action: "extractContent" },
           (response) => {
-            sendResponse(response);
+            // Handle cases where response might be undefined or have errors
+            if (chrome.runtime.lastError) {
+              console.error(
+                "Runtime error during content extraction:",
+                chrome.runtime.lastError
+              );
+              sendResponse({
+                content: null,
+                error: chrome.runtime.lastError.message,
+              });
+            } else if (response && response.content) {
+              console.log(
+                "Content extracted successfully, length:",
+                response.content.length
+              );
+              sendResponse({ content: response.content });
+            } else if (response && response.error) {
+              console.error("Content extraction failed:", response.error);
+              sendResponse({ content: null, error: response.error });
+            } else {
+              console.error("Unexpected response format:", response);
+              sendResponse({
+                content: null,
+                error: "Unexpected response format",
+              });
+            }
           }
         );
       } else {
+        console.error("No active tab found for content extraction");
         sendResponse({ content: null, error: "No active tab found" });
       }
     });
-    return true;
+    return true; // Keep the message channel open for async response
   }
 
   if (request.action === "screenshotTaken") {

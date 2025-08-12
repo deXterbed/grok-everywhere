@@ -11,6 +11,8 @@ async function captureVisibleArea() {
 // Function to extract relevant webpage content
 function extractPageContent() {
   try {
+    console.log("Starting content extraction for:", window.location.href);
+
     // Remove script and style elements
     const scripts = document.querySelectorAll(
       "script, style, noscript, iframe, embed, object, nav, header, footer, .nav, .header, .footer, .sidebar, .menu"
@@ -42,6 +44,7 @@ function extractPageContent() {
       const element = document.querySelector(selector);
       if (element && element.textContent.trim().length > 100) {
         mainElement = element;
+        console.log("Found main content using selector:", selector);
         break;
       }
     }
@@ -49,6 +52,7 @@ function extractPageContent() {
     // If no main content found, use body but filter out navigation and other non-content elements
     if (!mainElement) {
       mainElement = document.body;
+      console.log("Using document.body as main content");
     }
 
     // Extract text content
@@ -65,6 +69,7 @@ function extractPageContent() {
     const maxLength = 8000; // Conservative limit
     if (content.length > maxLength) {
       content = content.substring(0, maxLength) + "...";
+      console.log("Content truncated to", maxLength, "characters");
     }
 
     // Add page metadata
@@ -73,6 +78,11 @@ function extractPageContent() {
     const metadata = `Page: ${title}\nURL: ${url}\n\n`;
 
     const finalContent = metadata + content;
+
+    console.log(
+      "Content extraction completed. Total length:",
+      finalContent.length
+    );
 
     // Ensure we have meaningful content
     if (finalContent.length < 100) {
@@ -109,7 +119,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
 
   if (request.action === "extractContent") {
     try {
-      // console.log("Extracting content from page:", window.location.href);
+      console.log("Content extraction requested for:", window.location.href);
 
       // Check if we're on a valid page
       if (!document.body) {
@@ -119,10 +129,13 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
       }
 
       const content = extractPageContent();
-      // console.log("Content extraction result:", content ? "success" : "failed");
+      console.log("Content extraction result:", content ? "success" : "failed");
 
       if (!content || content.length < 50) {
-        console.warn("Content extraction returned insufficient content");
+        console.warn(
+          "Content extraction returned insufficient content, length:",
+          content ? content.length : 0
+        );
         sendResponse({
           content: null,
           error: "Insufficient content extracted",
@@ -130,6 +143,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
         return true;
       }
 
+      console.log("Sending extracted content back, length:", content.length);
       sendResponse({ content: content });
     } catch (error) {
       console.error("Content extraction error:", error);
@@ -147,6 +161,12 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
       },
       "*"
     );
+  }
+
+  if (request.action === "ping") {
+    // Simple ping to check if content script is available
+    sendResponse({ status: "ok" });
+    return true;
   }
 });
 
