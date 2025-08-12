@@ -40,6 +40,13 @@
         "mac": "Command+Shift+S"
       },
       "description": "Take a screenshot and send to Grok everywhere"
+    },
+    "extract-content": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+C",
+        "mac": "Command+Shift+C"
+      },
+      "description": "Extract page content and send to Grok everywhere"
     }
   },
   "icons": {
@@ -48,8 +55,5 @@
     "48": "icons/grok.png",
     "128": "icons/grok.png"
   },
-  "host_permissions": [
-    "https://api.x.ai/*",
-    "<all_urls>"
-  ]
+  "host_permissions": ["https://api.x.ai/*", "<all_urls>"]
 }

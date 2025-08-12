@@ -1,324 +1,542 @@
 <!DOCTYPE html>
 <html>
-<head>
+  <head>
     <title>Grok everywhere</title>
-    <link rel="stylesheet" href="styles/main.css">
-    <link rel="stylesheet" href="styles/conversation.css">
+    <link rel="stylesheet" href="styles/main.css" />
+    <link rel="stylesheet" href="styles/conversation.css" />
     <style>
-        :root {
-            --text-primary: rgb(255, 255, 255);
-            --text-secondary: rgb(128, 128, 128);
-            --background-primary: rgb(0, 0, 0);
-            --background-secondary: rgba(32, 32, 32, 0.8);
-            --border-light: rgba(255, 255, 255, 0.1);
-            --surface-primary: rgba(32, 32, 32, 0.8);
-            --link-color: rgb(128, 128, 128);
-        }
+      :root {
+        --text-primary: rgb(255, 255, 255);
+        --text-secondary: rgb(128, 128, 128);
+        --background-primary: rgb(0, 0, 0);
+        --background-secondary: rgba(32, 32, 32, 0.8);
+        --border-light: rgba(255, 255, 255, 0.1);
+        --surface-primary: rgba(32, 32, 32, 0.8);
+        --link-color: rgb(128, 128, 128);
+      }
 
-        body, html {
-            margin: 0;
-            padding: 0;
-            height: 100vh;
-            font-family: system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, Cantarell, "Noto Sans", sans-serif;
-            display: flex;
-            flex-direction: column;
-            background-color: var(--background-primary);
-            color: var(--text-primary);
-            line-height: 1.5;
-            overflow: hidden;
-            font-size: 16px;
-            font-weight: 400;
-        }
+      body,
+      html {
+        margin: 0;
+        padding: 0;
+        height: 100vh;
+        font-family: system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu,
+          Cantarell, "Noto Sans", sans-serif;
+        display: flex;
+        flex-direction: column;
+        background-color: var(--background-primary);
+        color: var(--text-primary);
+        line-height: 1.5;
+        overflow: hidden;
+        font-size: 16px;
+        font-weight: 400;
+      }
 
-        /* Chat container */
-        #chat-container {
-            flex-grow: 1;
-            overflow-y: auto;
-            padding: 0;
-            padding-bottom: 100px; 
-            background-color: var(--background-primary);
-            margin-top: 88px;
-        }
+      /* Chat container */
+      #chat-container {
+        flex-grow: 1;
+        overflow-y: auto;
+        padding: 0;
+        padding-bottom: 100px;
+        background-color: var(--background-primary);
+        margin-top: 64px;
+      }
 
-        /* Message styles */
-        .message-wrapper {
-            padding: 0.25rem 1rem;
-            background-color: var(--background-primary);
-        }
+      /* Message styles */
+      .message-wrapper {
+        padding: 0.25rem 1rem;
+        background-color: var(--background-primary);
+      }
 
-        .message-wrapper.user {
-            background-color: var(--background-primary);
-        }
+      .message-wrapper.user {
+        background-color: var(--background-primary);
+      }
 
-        .message {
-            max-width: 48rem;
-            margin: 0 auto;
-            display: flex;
-            gap: 1rem;
-            padding: 0.25rem 0;
-        }
+      .message {
+        max-width: 48rem;
+        margin: 0 auto;
+        display: flex;
+        gap: 1rem;
+        padding: 0.25rem 0;
+      }
 
-        .message-wrapper.user .message-content {
-            background-color: transparent;
-            padding: 12px;
-            max-width: 600px;
-            font-weight: bold;
-        }
+      .message-wrapper.user .message-content {
+        background-color: transparent;
+        padding: 12px;
+        max-width: 600px;
+        font-weight: bold;
+      }
 
-        .message-wrapper.assistant .message-content {
-            background-color: var(--background-secondary);
-            border-radius: 20px;
-            padding: 12px;
-            max-width: 600px;
-        }
+      .message-wrapper.assistant .message-content {
+        background-color: var(--background-secondary);
+        border-radius: 20px;
+        padding: 12px;
+        max-width: 600px;
+      }
 
-        .message-content {
-            font-size: 16px;
-            line-height: 1.5;
-            overflow-wrap: break-word;
-            white-space: pre-wrap;
-            max-width: 90%;
-            font-weight: 400;
-        }
+      .message-content {
+        font-size: 16px;
+        line-height: 1.5;
+        overflow-wrap: break-word;
+        white-space: pre-wrap;
+        max-width: 90%;
+        font-weight: 400;
+      }
 
-        .message-wrapper.user .avatar {
-            display: none;
-        }
+      .message-wrapper.user .avatar {
+        display: none;
+      }
 
-        /* Image in message */
-        .message-content img {
-            max-width: 100%;
-            border-radius: 8px !important;
-            margin: 8px 0 !important;
-            border: 1px solid white !important;
-            height: auto !important;
-            width: 400px !important;
-            display: block !important;
-        }
+      /* Image in message */
+      .message-content img {
+        max-width: 100%;
+        border-radius: 8px !important;
+        margin: 8px 0 !important;
+        border: 1px solid white !important;
+        height: auto !important;
+        width: 400px !important;
+        display: block !important;
+      }
 
-        /* Input container */
-        #input-container {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background-color: var(--background-primary);
-            padding: 0.5rem;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
+      /* Input container */
+      #input-container {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background-color: var(--background-primary);
+        padding: 0.75rem;
+        padding-bottom: 1.5rem;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
 
-        .input-wrapper {
-            width: 100%;
-            max-width: 600px;
-            margin: 0 auto;
-            margin-bottom: 0;
-            background-color: var(--background-secondary);
-            border-radius: 20px;
-            position: relative;
-            display: flex;
-            align-items: center;
-        }
+      .input-wrapper {
+        width: 100%;
+        max-width: 600px;
+        margin: 0 auto;
+        margin-bottom: 0;
+        margin-top: 8px;
+        background-color: var(--background-secondary);
+        border-radius: 20px;
+        position: relative;
+        display: flex;
+        align-items: center;
+        padding: 6px;
+      }
 
-        #message-input {
-            width: 100%;
-            resize: none;
-            padding: 14px 40px 14px 48px;
-            background-color: transparent;
-            border: none;
-            font-family: inherit;
-            font-size: 16px;
-            line-height: 1.5;
-            color: var(--text-primary);
-            margin: 0;
-            overflow-y: hidden;
-            outline: none !important;
-            min-height: 24px;
-            box-sizing: border-box;
-            font-weight: 400;
-            display: block;
-            align-self: center;
-        }
+      #message-input {
+        width: 100%;
+        resize: none;
+        padding: 20px 44px 20px 52px;
+        background-color: transparent;
+        border: none;
+        font-family: inherit;
+        font-size: 16px;
+        line-height: 1.6;
+        color: var(--text-primary);
+        margin: 0;
+        overflow-y: hidden;
+        outline: none !important;
+        min-height: 36px;
+        box-sizing: border-box;
+        font-weight: 400;
+        display: block;
+        align-self: center;
+      }
 
-        #message-input:focus {
-            outline: none;
-        }
+      #message-input:focus {
+        outline: none;
+      }
 
-        #message-input::placeholder {
-            color: var(--text-secondary);
-        }
+      #message-input::placeholder {
+        color: var(--text-secondary);
+      }
 
-        #api-key-missing {
-            display: none;
-            color: #ff4a4a;
-            text-align: center;
-            padding: 0.75rem;
-            background-color: #fff2f2;
-            border-radius: 0.5rem;
-            margin-bottom: 0.75rem;
-            font-size: 0.875rem;
-            width: 100%;
-            max-width: 48rem;
-        }
+      #api-key-missing {
+        display: none;
+        color: #ff4a4a;
+        text-align: center;
+        padding: 0.75rem;
+        background-color: #fff2f2;
+        border-radius: 0.5rem;
+        margin-bottom: 0.75rem;
+        font-size: 0.875rem;
+        width: 100%;
+        max-width: 48rem;
+      }
 
-        .image-button {
-            position: absolute;
-            left: 8px;
-            top: 50%;
-            transform: translateY(-50%);
-            background: none;
-            border: none;
-            padding: 4px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 20px;
-            transition: background-color 0.2s ease;
-        }
+      .image-button {
+        position: absolute;
+        left: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        background: none;
+        border: none;
+        padding: 4px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 20px;
+        transition: background-color 0.2s ease;
+      }
 
-        .image-button path {
-            stroke: var(--text-primary);
-            transition: stroke 0.2s ease;
-        }
+      .image-button path {
+        stroke: var(--text-primary);
+        transition: stroke 0.2s ease;
+      }
 
-        .image-button:hover {
-            background-color: rgba(48, 48, 48, 0.8);
-        }
+      .image-button:hover {
+        background-color: rgba(48, 48, 48, 0.8);
+      }
 
-        .image-button.active {
-            background-color: rgba(64, 64, 64, 0.8) !important;
-        }
+      .image-button.active {
+        background-color: rgba(64, 64, 64, 0.8) !important;
+      }
 
-        .image-button.active path {
-            stroke: var(--text-primary) !important;
-        }
+      .image-button.active path {
+        stroke: var(--text-primary) !important;
+      }
 
-        .send-button {
-            position: absolute;
-            right: 8px;
-            top: 50%;
-            transform: translateY(-50%);
-            background: none;
-            border: none;
-            padding: 4px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 20px;
-            transition: background-color 0.2s ease;
-        }
+      /* Context mode indicators */
+      .image-button.content-mode {
+        background-color: rgba(0, 128, 255, 0.3) !important;
+        border: 2px solid rgba(0, 128, 255, 0.6);
+      }
 
-        .send-button path {
-            stroke: var(--text-primary);
-            transition: stroke 0.2s ease;
-        }
+      .image-button.screenshot-mode {
+        background-color: rgba(255, 165, 0, 0.3) !important;
+        border: 2px solid rgba(255, 165, 0, 0.6);
+      }
 
-        .send-button:hover {
-            background-color: rgba(48, 48, 48, 0.8);
-        }
+      .image-button.content-mode img {
+        filter: brightness(1.2) saturate(1.5);
+      }
 
-        .send-button.active {
-            background-color: rgba(64, 64, 64, 0.8) !important;
-        }
+      .image-button.screenshot-mode img {
+        filter: brightness(1.2) saturate(1.5);
+      }
 
-        .send-button.active path {
-            stroke: var(--text-primary) !important;
-        }
+      .send-button {
+        position: absolute;
+        right: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        background: none;
+        border: none;
+        padding: 4px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 20px;
+        transition: background-color 0.2s ease;
+      }
 
-        /* API Key section */
-        #api-key-section {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            background-color: var(--background-primary);
-            padding: 16px;
-            border-bottom: 1px solid var(--border-light);
-            z-index: 1000;
-            display: flex;
-            align-items: center;
-            gap: 16px;
-        }
+      .send-button path {
+        stroke: var(--text-primary);
+        transition: stroke 0.2s ease;
+      }
 
-        #api-key-input {
-            flex-grow: 1;
-            padding: 12px 16px;
-            border: 1px solid var(--border-light);
-            border-radius: 6px;
-            font-size: 16px;
-            background-color: var(--background-primary);
-            color: var(--text-primary);
-            font-weight: 400;
-        }
+      .send-button:hover {
+        background-color: rgba(48, 48, 48, 0.8);
+      }
 
-        #api-key-input.saved {
-            color: var(--text-secondary);
-        }
+      .send-button.active {
+        background-color: rgba(64, 64, 64, 0.8) !important;
+      }
 
-        #api-key-input.saved::placeholder {
-            content: "API key saved";
-        }
+      .send-button.active path {
+        stroke: var(--text-primary) !important;
+      }
 
-        #save-api-key {
-            background: none;
-            border: none;
-            cursor: pointer;
-            padding: 8px;
-            border-radius: 6px;
-            transition: background-color 0.2s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
+      /* Send button loading state */
+      .send-button.loading {
+        animation: pulse 1.5s ease-in-out infinite;
+      }
 
-        #save-api-key:hover {
-            background-color: rgba(48, 48, 48, 0.8);
-        }
+      .send-button.loading path {
+        stroke: var(--text-secondary) !important;
+      }
 
-        #save-api-key.active {
-            background-color: rgba(64, 64, 64, 0.8) !important;
-        }
+      /* API Key section */
+      #api-key-section {
+        flex: 1;
+        padding: 10px;
+        display: flex;
+        align-items: center;
+      }
 
-        #save-api-key img {
-            width: 20px;
-            height: 20px;
-            filter: invert(100%);
-            transition: filter 0.2s ease;
-        }
+      #api-key-input {
+        flex-grow: 1;
+        padding: 12px 16px;
+        border: 1px solid var(--border-light);
+        border-radius: 6px;
+        font-size: 16px;
+        background-color: var(--background-primary);
+        color: var(--text-primary);
+        font-weight: 400;
+      }
 
-        #save-api-key.active img {
-            filter: invert(100%) !important;
+      #api-key-input.saved {
+        color: var(--text-secondary);
+      }
+
+      #api-key-input.saved::placeholder {
+        content: "API key saved";
+      }
+
+      #save-api-key {
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 8px;
+        border-radius: 6px;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--text-secondary);
+      }
+
+      #save-api-key:hover {
+        background-color: rgba(48, 48, 48, 0.8);
+        color: var(--text-primary);
+      }
+
+      #save-api-key.active {
+        background-color: rgba(64, 64, 64, 0.8) !important;
+        color: var(--text-primary) !important;
+      }
+
+      #save-api-key svg {
+        width: 20px;
+        height: 20px;
+      }
+
+      /* Loading states */
+      .loading {
+        opacity: 0.6;
+        pointer-events: none;
+      }
+
+      .loading .send-button {
+        animation: pulse 1.5s ease-in-out infinite;
+      }
+
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
         }
+        50% {
+          opacity: 0.5;
+        }
+      }
+
+      /* Typing indicator */
+      .typing-indicator {
+        display: none;
+        padding: 0.25rem 1rem;
+        background-color: var(--background-primary);
+      }
+
+      .typing-indicator .message {
+        max-width: 48rem;
+        margin: 0 auto;
+        display: flex;
+        gap: 1rem;
+        padding: 0.25rem 0;
+      }
+
+      .typing-indicator .message-content {
+        background-color: var(--background-secondary);
+        border-radius: 20px;
+        padding: 12px;
+        max-width: 600px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .typing-dots {
+        display: flex;
+        gap: 4px;
+      }
+
+      .typing-dot {
+        width: 8px;
+        height: 8px;
+        background-color: var(--text-secondary);
+        border-radius: 50%;
+        animation: typing-bounce 1.4s ease-in-out infinite both;
+      }
+
+      .typing-dot:nth-child(1) {
+        animation-delay: -0.32s;
+      }
+      .typing-dot:nth-child(2) {
+        animation-delay: -0.16s;
+      }
+      .typing-dot:nth-child(3) {
+        animation-delay: 0s;
+      }
+
+      @keyframes typing-bounce {
+        0%,
+        80%,
+        100% {
+          transform: scale(0.8);
+          opacity: 0.5;
+        }
+        40% {
+          transform: scale(1);
+          opacity: 1;
+        }
+      }
+
+      /* Model indicator during typing */
+      .typing-model-indicator {
+        font-size: 0.75em;
+        color: var(--text-secondary);
+        font-style: italic;
+      }
     </style>
-</head>
-<body>
-    <div id="api-key-section">
-        <input type="text" id="api-key-input" placeholder="Enter xAI API Key (x.ai)">
-        <button id="save-api-key" title="Save API Key">
-            <img src="icons/save.svg" width="20" height="20" />
-        </button>
+  </head>
+  <body>
+    <div
+      id="header-container"
+      style="
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        background-color: var(--background-primary);
+        border-bottom: 1px solid var(--border-light);
+        z-index: 1000;
+        display: flex;
+        align-items: center;
+        min-height: 64px;
+      "
+    >
+      <div id="api-key-section">
+        <div id="api-key-input-container">
+          <input
+            type="password"
+            id="api-key-input"
+            placeholder="Enter your xAI API key"
+          />
+          <button id="save-api-key">
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M19 21H5C3.89543 21 3 20.1046 3 19V5C3 3.89543 3.89543 3 5 3H16L21 8V19C21 20.1046 20.1046 21 19 21Z"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+              <path
+                d="M17 21V13H7V21"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+              <path
+                d="M7 3V8H15"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </button>
+        </div>
+      </div>
     </div>
+
     <div id="chat-container"></div>
 
-    <div id="input-container">
-        <div class="input-wrapper">
-            <div id="api-key-missing">Please set your xAI API key in the extension options</div>
-            <textarea id="message-input" rows="1" placeholder="Ask anything"></textarea>
-            <button class="image-button">
-                <img src="icons/chrome.png" width="24" height="24" />
-            </button>
-            <button class="send-button">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M22 2L11 13" stroke="inherit" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    <path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="inherit" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-            </button>
+    <!-- Typing indicator -->
+    <div id="typing-indicator" class="typing-indicator">
+      <div class="message">
+        <div class="message-content">
+          <div class="typing-dots">
+            <div class="typing-dot"></div>
+            <div class="typing-dot"></div>
+            <div class="typing-dot"></div>
+          </div>
+          <span class="typing-model-indicator">Grok is thinking...</span>
         </div>
+      </div>
+    </div>
+
+    <div id="input-container">
+      <!-- Model badge -->
+      <div
+        id="model-badge"
+        style="
+          margin-bottom: 8px;
+          padding: 4px 12px;
+          background-color: rgba(64, 64, 64, 0.8);
+          border-radius: 12px;
+          font-size: 11px;
+          color: var(--text-secondary);
+          text-align: center;
+          display: inline-block;
+          border: 1px solid rgba(255, 255, 255, 0.1);
+        "
+      >
+        <span id="current-model-display">Grok 3</span>
+      </div>
+
+      <div class="input-wrapper">
+        <div id="api-key-missing">
+          Please set your xAI API key in the extension options
+        </div>
+        <textarea
+          id="message-input"
+          rows="1"
+          placeholder="Ask anything"
+        ></textarea>
+        <button class="image-button">
+          <img src="icons/chrome.png" width="24" height="24" />
+        </button>
+        <button class="send-button">
+          <svg
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M22 2L11 13"
+              stroke="inherit"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+            <path
+              d="M22 2L15 22L11 13L2 9L22 2Z"
+              stroke="inherit"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </button>
+      </div>
     </div>
 
     <script src="sidepanel.js"></script>
-</body>
+  </body>
 </html>
