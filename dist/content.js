@@ -13,13 +13,20 @@ function extractPageContent() {
   try {
     console.log("Starting content extraction for:", window.location.href);
 
-    // Remove script and style elements
-    const scripts = document.querySelectorAll(
+    // Create a clone of the document body to avoid modifying the original page
+    const bodyClone = document.body.cloneNode(true);
+
+    // Remove script and style elements from the clone only
+    const elementsToRemove = bodyClone.querySelectorAll(
       "script, style, noscript, iframe, embed, object, nav, header, footer, .nav, .header, .footer, .sidebar, .menu"
     );
-    scripts.forEach((el) => el.remove());
+    elementsToRemove.forEach((el) => {
+      if (el.parentNode) {
+        el.parentNode.removeChild(el);
+      }
+    });
 
-    // Get the main content areas
+    // Get the main content areas from the clone
     const contentSelectors = [
       "main",
       "article",
@@ -39,9 +46,9 @@ function extractPageContent() {
     let content = "";
     let mainElement = null;
 
-    // Try to find main content area
+    // Try to find main content area in the clone
     for (const selector of contentSelectors) {
-      const element = document.querySelector(selector);
+      const element = bodyClone.querySelector(selector);
       if (element && element.textContent.trim().length > 100) {
         mainElement = element;
         console.log("Found main content using selector:", selector);
@@ -49,13 +56,13 @@ function extractPageContent() {
       }
     }
 
-    // If no main content found, use body but filter out navigation and other non-content elements
+    // If no main content found, use body clone but filter out navigation and other non-content elements
     if (!mainElement) {
-      mainElement = document.body;
-      console.log("Using document.body as main content");
+      mainElement = bodyClone;
+      console.log("Using document.body clone as main content");
     }
 
-    // Extract text content
+    // Extract text content from the clone
     content = mainElement.textContent || mainElement.innerText || "";
 
     // Clean up the content
