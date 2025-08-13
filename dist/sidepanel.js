@@ -962,7 +962,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         {
           role: "system",
           content:
-            "You are Grok, a helpful AI assistant created by xAI. You will be provided context from the user's current webpage to help answer their questions more effectively. When asked to summarize, focus on the main content and provide a clear, concise summary.",
+            "You are Grok, a helpful AI assistant created by xAI. You will be provided context from the user's current webpage to help answer their questions more effectively. Focus on the main content, articles, text, and meaningful information from the webpage. Provide clear, concise responses that directly address the user's question based on the webpage content.",
         },
       ];
 
