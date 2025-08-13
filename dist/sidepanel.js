@@ -309,7 +309,9 @@ document.addEventListener("DOMContentLoaded", async () => {
           `conversationHistory_${tab.id}`,
         ]);
         if (result[`conversationHistory_${tab.id}`]) {
-          conversationHistory = result[`conversationHistory_${tab.id}`];
+          conversationHistory = limitMessageHistory(
+            result[`conversationHistory_${tab.id}`]
+          );
           // Restore the conversation UI
           conversationHistory.forEach((msg) => {
             addMessage(msg.content, msg.isUser, msg.screenshot, msg.model);
@@ -327,6 +329,44 @@ document.addEventListener("DOMContentLoaded", async () => {
   // Keep track of conversation history per tab
   let conversationHistory = [];
   let currentTabId = null;
+
+  // Configuration for chat history management
+  const MAX_MESSAGES_PER_TAB = 50; // Maximum messages to keep per tab
+  const MAX_TABS_TO_STORE = 20; // Maximum number of tabs to store history for
+
+  function cleanupOldConversations() {
+    // Get all conversation history keys
+    chrome.storage.local.get(null, (result) => {
+      const conversationKeys = Object.keys(result).filter((key) =>
+        key.startsWith("conversationHistory_")
+      );
+
+      if (conversationKeys.length > MAX_TABS_TO_STORE) {
+        // Sort by timestamp (assuming tab IDs are timestamps) and remove oldest
+        const sortedKeys = conversationKeys.sort((a, b) => {
+          const tabIdA = parseInt(a.replace("conversationHistory_", ""));
+          const tabIdB = parseInt(b.replace("conversationHistory_", ""));
+          return tabIdA - tabIdB;
+        });
+
+        // Remove oldest conversations
+        const keysToRemove = sortedKeys.slice(
+          0,
+          conversationKeys.length - MAX_TABS_TO_STORE
+        );
+        chrome.storage.local.remove(keysToRemove);
+        console.log(`Cleaned up ${keysToRemove.length} old conversations`);
+      }
+    });
+  }
+
+  function limitMessageHistory(history) {
+    if (history.length > MAX_MESSAGES_PER_TAB) {
+      // Keep the most recent messages
+      return history.slice(-MAX_MESSAGES_PER_TAB);
+    }
+    return history;
+  }
 
   function clearConversation() {
     showContextLoading("Clearing conversation...");
@@ -360,7 +400,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     // Load conversation for the new tab
     chrome.storage.local.get([`conversationHistory_${newTabId}`], (result) => {
       if (result[`conversationHistory_${newTabId}`]) {
-        conversationHistory = result[`conversationHistory_${newTabId}`];
+        conversationHistory = limitMessageHistory(
+          result[`conversationHistory_${newTabId}`]
+        );
         // Restore the conversation UI
         chatContainer.innerHTML = "";
         conversationHistory.forEach((msg) => {
@@ -807,11 +849,16 @@ document.addEventListener("DOMContentLoaded", async () => {
       model: model,
     });
 
+    // Limit message history
+    conversationHistory = limitMessageHistory(conversationHistory);
+
     // Save conversation for current tab
     if (currentTabId) {
       await chrome.storage.local.set({
         [`conversationHistory_${currentTabId}`]: conversationHistory,
       });
+      // Clean up old conversations periodically
+      cleanupOldConversations();
     }
 
     try {
@@ -837,11 +884,16 @@ document.addEventListener("DOMContentLoaded", async () => {
         model: model,
       });
 
+      // Limit message history
+      conversationHistory = limitMessageHistory(conversationHistory);
+
       // Save conversation for current tab
       if (currentTabId) {
         await chrome.storage.local.set({
           [`conversationHistory_${currentTabId}`]: conversationHistory,
         });
+        // Clean up old conversations periodically
+        cleanupOldConversations();
       }
 
       // Update the streaming message with final content

@@ -199,6 +199,18 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   }
 });
 
+// Handle tab removal to clean up chat history
+chrome.tabs.onRemoved.addListener(async (tabId, removeInfo) => {
+  try {
+    // Clean up chat history for the closed tab
+    const storageKey = `conversationHistory_${tabId}`;
+    await chrome.storage.local.remove([storageKey]);
+    console.log(`Cleaned up chat history for closed tab: ${tabId}`);
+  } catch (error) {
+    console.error("Error cleaning up chat history for closed tab:", error);
+  }
+});
+
 // Handle extension icon click
 chrome.action.onClicked.addListener(async (tab) => {
   // Always try to send clear message
