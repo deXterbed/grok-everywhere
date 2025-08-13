@@ -22,10 +22,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     apiKeyInput.classList.add("saved");
     saveApiKeyButton.classList.add("active");
     messageInput.disabled = false;
-    // Hide the API key input and save button, but keep the close button visible
-    apiKeyInput.style.display = "none";
-    saveApiKeyButton.style.display = "none";
-    // Adjust chat container margin since API section is hidden
+    // Hide the entire header container when API key is saved
+    document.getElementById("header-container").style.display = "none";
+    // Ensure chat container is properly positioned
     document.getElementById("chat-container").style.marginTop = "0px";
     setTimeout(() => {
       hideContextLoading();
@@ -35,6 +34,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     // Ensure save button is visible when no API key is set
     saveApiKeyButton.style.display = "flex";
     apiKeyInput.style.display = "block";
+    // Show the header container when API key is not set
+    document.getElementById("header-container").style.display = "flex";
+    // Ensure chat container is properly positioned
+    document.getElementById("chat-container").style.marginTop = "48px";
   }
 
   // Handle API key input and save
@@ -77,11 +80,10 @@ document.addEventListener("DOMContentLoaded", async () => {
       apiKeyInput.classList.remove("saved");
       saveApiKeyButton.classList.remove("active");
       messageInput.disabled = true;
-      // Show the API key input and save button again
-      apiKeyInput.style.display = "block";
-      saveApiKeyButton.style.display = "flex";
-      // Adjust chat container margin back
-      document.getElementById("chat-container").style.marginTop = "64px";
+      // Show the header container when API key is removed
+      document.getElementById("header-container").style.display = "flex";
+      // Ensure chat container is properly positioned
+      document.getElementById("chat-container").style.marginTop = "48px";
       hideContextLoading();
     } else {
       // If button is not active, save the new API key
@@ -94,10 +96,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         apiKeyInput.classList.add("saved");
         saveApiKeyButton.classList.add("active");
         messageInput.disabled = false;
-        // Hide the API key input and save button, but keep the close button visible
-        apiKeyInput.style.display = "none";
-        saveApiKeyButton.style.display = "none";
-        // Adjust chat container margin since API section is hidden
+        // Hide the entire header container when API key is saved
+        document.getElementById("header-container").style.display = "none";
+        // Ensure chat container is properly positioned
         document.getElementById("chat-container").style.marginTop = "0px";
         hideContextLoading();
       }
@@ -1182,9 +1183,15 @@ document.addEventListener("DOMContentLoaded", async () => {
     wrapperDiv.appendChild(messageDiv);
     chatContainer.appendChild(wrapperDiv);
 
-    // Scroll to bottom with a small delay to ensure proper rendering
+    // Ensure the message is visible
     setTimeout(() => {
-      chatContainer.scrollTop = chatContainer.scrollHeight;
+      // If this is the first message, scroll to top to make sure it's visible
+      if (chatContainer.children.length === 1) {
+        chatContainer.scrollTop = 0;
+      } else {
+        // Otherwise scroll to bottom for new messages
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+      }
     }, 10);
   }
 
