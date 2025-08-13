@@ -17,6 +17,188 @@ chrome.runtime.onConnect.addListener((port) => {
   }
 });
 
+// Handle tab activation to refresh side panel content
+chrome.tabs.onActivated.addListener(async (activeInfo) => {
+  try {
+    // Get the newly activated tab
+    const tab = await chrome.tabs.get(activeInfo.tabId);
+
+    // Skip if it's a special page where content scripts can't run
+    const url = new URL(tab.url);
+    if (
+      url.protocol === "chrome:" ||
+      url.protocol === "chrome-extension:" ||
+      url.protocol === "moz-extension:" ||
+      url.protocol === "edge:" ||
+      url.protocol === "about:" ||
+      url.protocol === "data:" ||
+      url.protocol === "view-source:"
+    ) {
+      // Send message to side panel that content is not available
+      sidePanelPorts.forEach((port) => {
+        try {
+          port.postMessage({
+            action: "tabSwitched",
+            content: null,
+            url: tab.url,
+            available: false,
+            tabId: tab.id,
+          });
+        } catch (error) {
+          console.error("Error sending tab switch message to port:", error);
+        }
+      });
+      return;
+    }
+
+    // Try to extract content from the new tab
+    try {
+      const response = await chrome.tabs.sendMessage(tab.id, {
+        action: "extractContent",
+      });
+      if (response && response.content) {
+        // Send content to side panel
+        sidePanelPorts.forEach((port) => {
+          try {
+            port.postMessage({
+              action: "tabSwitched",
+              content: response.content,
+              url: tab.url,
+              available: true,
+              tabId: tab.id,
+            });
+          } catch (error) {
+            console.error("Error sending tab switch message to port:", error);
+          }
+        });
+      } else {
+        // Content extraction failed
+        sidePanelPorts.forEach((port) => {
+          try {
+            port.postMessage({
+              action: "tabSwitched",
+              content: null,
+              url: tab.url,
+              available: false,
+              tabId: tab.id,
+            });
+          } catch (error) {
+            console.error("Error sending tab switch message to port:", error);
+          }
+        });
+      }
+    } catch (error) {
+      // Content script not available or other error
+      sidePanelPorts.forEach((port) => {
+        try {
+          port.postMessage({
+            action: "tabSwitched",
+            content: null,
+            url: tab.url,
+            available: false,
+            tabId: tab.id,
+          });
+        } catch (error) {
+          console.error("Error sending tab switch message to port:", error);
+        }
+      });
+    }
+  } catch (error) {
+    console.error("Error handling tab activation:", error);
+  }
+});
+
+// Handle tab updates to refresh content when page changes
+chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
+  // Only handle when the page is complete and it's the active tab
+  if (changeInfo.status === "complete" && tab.active) {
+    try {
+      // Skip if it's a special page where content scripts can't run
+      const url = new URL(tab.url);
+      if (
+        url.protocol === "chrome:" ||
+        url.protocol === "chrome-extension:" ||
+        url.protocol === "moz-extension:" ||
+        url.protocol === "edge:" ||
+        url.protocol === "about:" ||
+        url.protocol === "data:" ||
+        url.protocol === "view-source:"
+      ) {
+        // Send message to side panel that content is not available
+        sidePanelPorts.forEach((port) => {
+          try {
+            port.postMessage({
+              action: "tabSwitched",
+              content: null,
+              url: tab.url,
+              available: false,
+              tabId: tab.id,
+            });
+          } catch (error) {
+            console.error("Error sending tab update message to port:", error);
+          }
+        });
+        return;
+      }
+
+      // Try to extract content from the updated tab
+      try {
+        const response = await chrome.tabs.sendMessage(tab.id, {
+          action: "extractContent",
+        });
+        if (response && response.content) {
+          // Send content to side panel
+          sidePanelPorts.forEach((port) => {
+            try {
+              port.postMessage({
+                action: "tabSwitched",
+                content: response.content,
+                url: tab.url,
+                available: true,
+                tabId: tab.id,
+              });
+            } catch (error) {
+              console.error("Error sending tab update message to port:", error);
+            }
+          });
+        } else {
+          // Content extraction failed
+          sidePanelPorts.forEach((port) => {
+            try {
+              port.postMessage({
+                action: "tabSwitched",
+                content: null,
+                url: tab.url,
+                available: false,
+                tabId: tab.id,
+              });
+            } catch (error) {
+              console.error("Error sending tab update message to port:", error);
+            }
+          });
+        }
+      } catch (error) {
+        // Content script not available or other error
+        sidePanelPorts.forEach((port) => {
+          try {
+            port.postMessage({
+              action: "tabSwitched",
+              content: null,
+              url: tab.url,
+              available: false,
+              tabId: tab.id,
+            });
+          } catch (error) {
+            console.error("Error sending tab update message to port:", error);
+          }
+        });
+      }
+    } catch (error) {
+      console.error("Error handling tab update:", error);
+    }
+  }
+});
+
 // Handle extension icon click
 chrome.action.onClicked.addListener(async (tab) => {
   // Always try to send clear message

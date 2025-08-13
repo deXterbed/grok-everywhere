@@ -205,6 +205,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (modelBadge) {
       modelBadge.style.animation = "typingPulse 2s ease-in-out infinite";
       modelBadge.style.background = "rgba(64, 128, 64, 0.8)"; // Green background to indicate active thinking
+      // Ensure the badge stays within the input container bounds
+      modelBadge.style.position = "relative";
+      modelBadge.style.zIndex = "1001";
     }
 
     // Disable input and send button while typing indicator is shown
@@ -271,6 +274,10 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (message.action === "clearConversation") {
         clearConversation();
       }
+
+      if (message.action === "tabSwitched") {
+        handleTabSwitch(message);
+      }
     });
 
     port.onDisconnect.addListener(() => {
@@ -288,34 +295,105 @@ document.addEventListener("DOMContentLoaded", async () => {
   // Initial connection
   connectToBackground();
 
-  // Keep track of conversation history
-  let conversationHistory = [];
-
-  // Load previous conversation if it exists
-  chrome.storage.local.get(["conversationHistory"], (result) => {
-    if (result.conversationHistory) {
-      showContextLoading("Loading conversation...");
-      conversationHistory = result.conversationHistory;
-      // Restore the conversation UI
-      conversationHistory.forEach((msg) => {
-        addMessage(msg.content, msg.isUser, msg.screenshot, msg.model);
+  // Initialize current tab ID and load conversation
+  async function initializeCurrentTab() {
+    try {
+      const [tab] = await chrome.tabs.query({
+        active: true,
+        currentWindow: true,
       });
-      setTimeout(() => {
-        hideContextLoading();
-      }, 500);
+      if (tab) {
+        currentTabId = tab.id;
+        // Load conversation for current tab
+        const result = await chrome.storage.local.get([
+          `conversationHistory_${tab.id}`,
+        ]);
+        if (result[`conversationHistory_${tab.id}`]) {
+          conversationHistory = result[`conversationHistory_${tab.id}`];
+          // Restore the conversation UI
+          conversationHistory.forEach((msg) => {
+            addMessage(msg.content, msg.isUser, msg.screenshot, msg.model);
+          });
+        }
+      }
+    } catch (error) {
+      console.error("Error initializing current tab:", error);
     }
-  });
+  }
+
+  // Initialize on load
+  initializeCurrentTab();
+
+  // Keep track of conversation history per tab
+  let conversationHistory = [];
+  let currentTabId = null;
 
   function clearConversation() {
     showContextLoading("Clearing conversation...");
     conversationHistory = [];
-    chrome.storage.local.set({ conversationHistory: [] });
+    // Clear conversation for current tab
+    if (currentTabId) {
+      chrome.storage.local.remove([`conversationHistory_${currentTabId}`]);
+    }
     chatContainer.innerHTML = "";
     messageInput.value = "";
     messageInput.focus();
     setTimeout(() => {
       hideContextLoading();
     }, 500); // Brief delay to show the loading state
+  }
+
+  function handleTabSwitch(message) {
+    showContextLoading("Switching to new tab...");
+
+    // Save current conversation for the previous tab
+    if (currentTabId && conversationHistory.length > 0) {
+      chrome.storage.local.set({
+        [`conversationHistory_${currentTabId}`]: conversationHistory,
+      });
+    }
+
+    // Get the new tab ID from the message
+    const newTabId = message.tabId || Date.now().toString(); // Fallback if no tabId provided
+    currentTabId = newTabId;
+
+    // Load conversation for the new tab
+    chrome.storage.local.get([`conversationHistory_${newTabId}`], (result) => {
+      if (result[`conversationHistory_${newTabId}`]) {
+        conversationHistory = result[`conversationHistory_${newTabId}`];
+        // Restore the conversation UI
+        chatContainer.innerHTML = "";
+        conversationHistory.forEach((msg) => {
+          addMessage(msg.content, msg.isUser, msg.screenshot, msg.model);
+        });
+      } else {
+        // No previous conversation for this tab, start fresh
+        conversationHistory = [];
+        chatContainer.innerHTML = "";
+      }
+    });
+
+    // Update current content based on the new tab
+    if (message.available && message.content) {
+      currentContent = message.content;
+      // If we're in content mode, enable shortcut mode with the new content
+      if (contextMode === "content") {
+        isShortcutMode = true;
+        showContextLoading("New page content loaded");
+      }
+    } else {
+      currentContent = null;
+      isShortcutMode = false;
+      showContextLoading("Content not available on this page");
+    }
+
+    // Update the UI to reflect the new tab
+    updateContextModeUI();
+
+    // Hide loading after a brief delay
+    setTimeout(() => {
+      hideContextLoading();
+    }, 1000);
   }
 
   async function takeScreenshot() {
@@ -440,6 +518,12 @@ document.addEventListener("DOMContentLoaded", async () => {
       "current-model-display"
     );
 
+    // Remove existing refresh button if it exists
+    const existingRefreshButton = document.querySelector(".refresh-button");
+    if (existingRefreshButton) {
+      existingRefreshButton.remove();
+    }
+
     // Add appropriate class and update placeholder
     switch (contextMode) {
       case "none":
@@ -469,13 +553,85 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (contextMode === "content" && !availability.available) {
         // Show a subtle warning in the model badge
         if (currentModelDisplay) {
-          currentModelDisplay.textContent = "Grok 3 (⚠️ Content unavailable)";
+          currentModelDisplay.textContent = "Grok 3 (Content unavailable)";
           currentModelDisplay.style.color = "#ff6b6b";
         }
+
+        // Add refresh button
+        addRefreshButton();
       } else if (currentModelDisplay) {
         currentModelDisplay.style.color = "";
       }
     });
+  }
+
+  function addRefreshButton() {
+    const modelBadge = document.getElementById("model-badge");
+    if (!modelBadge) return;
+
+    // Create refresh button
+    const refreshButton = document.createElement("button");
+    refreshButton.className = "refresh-button";
+    refreshButton.textContent = "Refresh Page";
+    refreshButton.style.cssText = `
+      margin-left: 8px;
+      padding: 4px 8px;
+      background: #ff6b6b;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      font-size: 10px;
+      cursor: pointer;
+      transition: background-color 0.2s ease;
+    `;
+
+    // Add hover effect
+    refreshButton.addEventListener("mouseenter", () => {
+      refreshButton.style.background = "#ff5252";
+    });
+    refreshButton.addEventListener("mouseleave", () => {
+      refreshButton.style.background = "#ff6b6b";
+    });
+
+    // Add click handler
+    refreshButton.addEventListener("click", async () => {
+      try {
+        showContextLoading("Refreshing page...");
+
+        // Get current active tab
+        const [tab] = await chrome.tabs.query({
+          active: true,
+          currentWindow: true,
+        });
+        if (tab) {
+          // Reload the current tab
+          await chrome.tabs.reload(tab.id);
+
+          // Wait a bit for the page to load, then check content availability again
+          setTimeout(async () => {
+            const availability = await checkContentScriptAvailability();
+            if (availability.available) {
+              showContextLoading("Content now available");
+              setTimeout(() => {
+                hideContextLoading();
+                updateContextModeUI();
+              }, 1000);
+            } else {
+              showContextLoading("Content still unavailable");
+              setTimeout(() => {
+                hideContextLoading();
+              }, 1000);
+            }
+          }, 2000);
+        }
+      } catch (error) {
+        console.error("Error refreshing page:", error);
+        hideContextLoading();
+      }
+    });
+
+    // Insert the refresh button after the model badge
+    modelBadge.parentNode.insertBefore(refreshButton, modelBadge.nextSibling);
   }
 
   function cycleContextMode() {
@@ -650,7 +806,13 @@ document.addEventListener("DOMContentLoaded", async () => {
       screenshot: screenshot,
       model: model,
     });
-    await chrome.storage.local.set({ conversationHistory });
+
+    // Save conversation for current tab
+    if (currentTabId) {
+      await chrome.storage.local.set({
+        [`conversationHistory_${currentTabId}`]: conversationHistory,
+      });
+    }
 
     try {
       // Get reply
@@ -665,7 +827,13 @@ document.addEventListener("DOMContentLoaded", async () => {
         isUser: false,
         model: model,
       });
-      await chrome.storage.local.set({ conversationHistory });
+
+      // Save conversation for current tab
+      if (currentTabId) {
+        await chrome.storage.local.set({
+          [`conversationHistory_${currentTabId}`]: conversationHistory,
+        });
+      }
 
       // Add reply to UI
       addMessage(reply, false, null, model);
