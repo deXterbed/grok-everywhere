@@ -815,8 +815,17 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     try {
-      // Get reply
-      const reply = await fetchReply(message, screenshot, content);
+      // Create a placeholder message for the streaming response
+      const streamingMessageId = Date.now().toString();
+      const streamingMessageElement = addStreamingMessage(streamingMessageId);
+
+      // Get streaming reply
+      const reply = await fetchStreamingReply(
+        message,
+        screenshot,
+        content,
+        streamingMessageId
+      );
 
       // Hide typing indicator
       hideTypingIndicator();
@@ -835,8 +844,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
       }
 
-      // Add reply to UI
-      addMessage(reply, false, null, model);
+      // Update the streaming message with final content
+      updateStreamingMessage(streamingMessageId, reply, model);
     } catch (error) {
       // Hide typing indicator on error
       hideTypingIndicator();
@@ -844,7 +853,107 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   }
 
-  async function fetchReply(message, screenshot, content) {
+  function addStreamingMessage(messageId) {
+    const wrapperDiv = document.createElement("div");
+    wrapperDiv.className = "message-wrapper";
+    wrapperDiv.id = `streaming-${messageId}`;
+
+    const messageDiv = document.createElement("div");
+    messageDiv.className = "message";
+
+    const contentDiv = document.createElement("div");
+    contentDiv.className = "message-content";
+
+    // Create text content with cursor
+    const textSpan = document.createElement("span");
+    textSpan.textContent = "";
+    contentDiv.appendChild(textSpan);
+
+    // Add streaming cursor
+    const cursor = document.createElement("span");
+    cursor.className = "streaming-cursor";
+    cursor.textContent = "▋";
+    cursor.style.cssText = `
+      animation: blink 1s infinite;
+      color: var(--text-primary);
+    `;
+    contentDiv.appendChild(cursor);
+
+    messageDiv.appendChild(contentDiv);
+    wrapperDiv.appendChild(messageDiv);
+    chatContainer.appendChild(wrapperDiv);
+
+    // Scroll to bottom
+    setTimeout(() => {
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+    }, 10);
+
+    return textSpan;
+  }
+
+  function updateStreamingMessage(messageId, content, model = null) {
+    const wrapperDiv = document.getElementById(`streaming-${messageId}`);
+    if (!wrapperDiv) return;
+
+    const contentDiv = wrapperDiv.querySelector(".message-content");
+    if (!contentDiv) return;
+
+    // Remove the cursor
+    const cursor = contentDiv.querySelector(".streaming-cursor");
+    if (cursor) {
+      cursor.remove();
+    }
+
+    // Update the text content
+    const textSpan = contentDiv.querySelector("span");
+    if (textSpan) {
+      textSpan.textContent = content;
+    }
+
+    // Add model indicator for assistant messages
+    if (model) {
+      const modelIndicator = document.createElement("div");
+      modelIndicator.style.fontSize = "0.75em";
+      modelIndicator.style.color = "#666";
+      modelIndicator.style.marginTop = "4px";
+      modelIndicator.style.fontStyle = "italic";
+
+      let modelText = "";
+      if (model === "grok-2-vision") {
+        modelText = "🤖 Using Grok Vision (image analysis)";
+      } else if (model === "grok-3") {
+        modelText = "🤖 Using Grok 3 (text analysis)";
+      }
+
+      modelIndicator.textContent = modelText;
+      contentDiv.appendChild(modelIndicator);
+    }
+
+    // Remove the streaming ID
+    wrapperDiv.removeAttribute("id");
+  }
+
+  function updateStreamingContent(messageId, content) {
+    const wrapperDiv = document.getElementById(`streaming-${messageId}`);
+    if (!wrapperDiv) return;
+
+    const textSpan = wrapperDiv.querySelector(".message-content span");
+    if (textSpan) {
+      textSpan.textContent = content;
+    }
+
+    // Scroll to bottom to follow the streaming content
+    setTimeout(() => {
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+    }, 10);
+  }
+
+  async function fetchStreamingReply(
+    message,
+    screenshot,
+    content,
+    streamingMessageId
+  ) {
     try {
       // Select the best model based on context type
       const model = screenshot ? "grok-2-vision" : "grok-3";
@@ -900,6 +1009,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           messages: messages,
           temperature: 0.7,
           max_tokens: 4096,
+          stream: true, // Enable streaming
         }),
       });
 
@@ -916,15 +1026,54 @@ document.addEventListener("DOMContentLoaded", async () => {
         throw new Error(errorMessage);
       }
 
-      const data = await response.json();
-      if (!data.choices?.[0]?.message?.content) {
-        throw new Error("Invalid response format from API");
+      // Handle streaming response
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let fullContent = "";
+      let buffer = "";
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() || ""; // Keep incomplete line in buffer
+
+          for (const line of lines) {
+            if (line.startsWith("data: ")) {
+              const data = line.slice(6);
+              if (data === "[DONE]") {
+                return fullContent;
+              }
+
+              try {
+                const parsed = JSON.parse(data);
+                if (
+                  parsed.choices &&
+                  parsed.choices[0] &&
+                  parsed.choices[0].delta &&
+                  parsed.choices[0].delta.content
+                ) {
+                  const content = parsed.choices[0].delta.content;
+                  fullContent += content;
+                  updateStreamingContent(streamingMessageId, fullContent);
+                }
+              } catch (e) {
+                // Ignore parsing errors for incomplete JSON
+              }
+            }
+          }
+        }
+      } finally {
+        reader.releaseLock();
       }
 
-      return data.choices[0].message.content;
+      return fullContent;
     } catch (error) {
       const errorMessage = error.message || "An unknown error occurred";
-      addMessage(`Error: ${errorMessage}`, false);
+      updateStreamingContent(streamingMessageId, `Error: ${errorMessage}`);
       throw error;
     }
   }
@@ -980,7 +1129,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     messageDiv.appendChild(contentDiv);
     wrapperDiv.appendChild(messageDiv);
     chatContainer.appendChild(wrapperDiv);
-    chatContainer.scrollTop = chatContainer.scrollHeight;
+
+    // Scroll to bottom with a small delay to ensure proper rendering
+    setTimeout(() => {
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+    }, 10);
   }
 
   // Test function to demonstrate loading states
