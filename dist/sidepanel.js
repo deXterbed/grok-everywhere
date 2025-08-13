@@ -534,14 +534,14 @@ document.addEventListener("DOMContentLoaded", async () => {
         break;
       case "content":
         imageButton.classList.add("active", "content-mode");
-        messageInput.placeholder = "Ask anything with page content";
+        messageInput.placeholder = "Ask about this page...";
         if (currentModelDisplay) {
           currentModelDisplay.textContent = "Grok 3";
         }
         break;
       case "screenshot":
         imageButton.classList.add("active", "screenshot-mode");
-        messageInput.placeholder = "Ask anything with screenshot";
+        messageInput.placeholder = "Ask about screenshot...";
         if (currentModelDisplay) {
           currentModelDisplay.textContent = "Grok Vision";
         }
@@ -913,7 +913,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     // Add model indicator for assistant messages
     if (model) {
       const modelIndicator = document.createElement("div");
-      modelIndicator.style.fontSize = "0.75em";
+      modelIndicator.style.fontSize = "0.7em";
       modelIndicator.style.color = "#666";
       modelIndicator.style.marginTop = "4px";
       modelIndicator.style.fontStyle = "italic";
@@ -1110,7 +1110,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     // Add model indicator for assistant messages
     if (!isUser && model) {
       const modelIndicator = document.createElement("div");
-      modelIndicator.style.fontSize = "0.75em";
+      modelIndicator.style.fontSize = "0.7em";
       modelIndicator.style.color = "#666";
       modelIndicator.style.marginTop = "4px";
       modelIndicator.style.fontStyle = "italic";

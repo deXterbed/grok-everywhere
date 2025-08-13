@@ -75,11 +75,10 @@
       }
 
       .message-content {
-        font-size: 16px;
-        line-height: 1.5;
+        font-size: 14px;
+        line-height: 1.4;
         overflow-wrap: break-word;
         white-space: pre-wrap;
-        max-width: 90%;
         font-weight: 400;
       }
 
@@ -126,27 +125,30 @@
         position: relative;
         display: flex;
         align-items: center;
-        padding: 6px;
+        padding: 8px;
+        min-height: 52px;
       }
 
       #message-input {
         width: 100%;
         resize: none;
-        padding: 20px 44px 20px 52px;
+        padding: 12px 44px 12px 52px;
         background-color: transparent;
         border: none;
         font-family: inherit;
-        font-size: 16px;
-        line-height: 1.6;
+        font-size: 14px;
+        line-height: 1.2;
         color: var(--text-primary);
         margin: 0;
         overflow-y: hidden;
         outline: none !important;
         min-height: 36px;
+        max-height: 120px;
         box-sizing: border-box;
         font-weight: 400;
         display: block;
         align-self: center;
+        vertical-align: middle;
       }
 
       #message-input:focus {
@@ -183,13 +185,14 @@
         transform: translateY(-50%);
         background: none;
         border: none;
-        padding: 4px;
+        padding: 6px;
         cursor: pointer;
         display: flex;
         align-items: center;
         justify-content: center;
         border-radius: 20px;
         transition: background-color 0.2s ease;
+        z-index: 10;
       }
 
       .image-button path {
@@ -235,13 +238,14 @@
         transform: translateY(-50%);
         background: none;
         border: none;
-        padding: 4px;
+        padding: 6px;
         cursor: pointer;
         display: flex;
         align-items: center;
         justify-content: center;
         border-radius: 20px;
         transition: background-color 0.2s ease;
+        z-index: 10;
       }
 
       .send-button path {
