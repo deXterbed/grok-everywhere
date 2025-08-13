@@ -837,7 +837,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   async function sendMessage(message, screenshot, content) {
     // Determine which model will be used
-    const model = screenshot ? "grok-2-vision" : "grok-3";
+    const model = screenshot ? "grok-2-vision" : "grok-3-mini";
 
     // Add message to UI first
     addMessage(message, true, screenshot, model);
@@ -974,7 +974,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       let modelText = "";
       if (model === "grok-2-vision") {
         modelText = "🤖 Using Grok Vision (image analysis)";
-      } else if (model === "grok-3") {
+      } else if (model === "grok-3-mini") {
         modelText = "🤖 Using Grok 3 (text analysis)";
       }
 
@@ -1009,7 +1009,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   ) {
     try {
       // Select the best model based on context type
-      const model = screenshot ? "grok-2-vision" : "grok-3";
+      const model = screenshot ? "grok-2-vision" : "grok-3-mini";
 
       const messages = [
         {
@@ -1171,7 +1171,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       let modelText = "";
       if (model === "grok-2-vision") {
         modelText = "🤖 Using Grok Vision (image analysis)";
-      } else if (model === "grok-3") {
+      } else if (model === "grok-3-mini") {
         modelText = "🤖 Using Grok 3 (text analysis)";
       }
 
