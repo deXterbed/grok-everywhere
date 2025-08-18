@@ -1,122 +1,107 @@
 # Grok Everywhere
 
-A Chrome extension that puts Grok AI in your browser's side panel. Chat with Grok while browsing, share screenshots, and get instant help with any webpage.
+A powerful Chrome extension that brings xAI's Grok AI assistant directly into your browser for intelligent web browsing assistance.
 
-<img width="1552" alt="Screenshot 2025-01-11 at 16 41 11" src="https://github.com/user-attachments/assets/ba1d45a7-49b3-4fc0-a706-17582c72fdc6" />
+## 🚀 Quick Start
 
-## Features
+**[Install from Chrome Web Store](https://chromewebstore.google.com/detail/grok-everywhere/onddcpahoenacjcgkldfegocdgdgajpn)**
 
-- Access Grok directly from your browser's side panel
-- **Three context modes**: No context, content-based context, or screenshot context
-- **Smart content extraction**: Automatically extracts relevant webpage content
-- **Intelligent model selection**: Automatically chooses the best Grok model for each task
-- **Keyboard shortcuts**: Quick access to context features
-- Works on any webpage
+## ✨ Features
 
-## Context Modes
+- **🤖 AI-Powered Conversations**: Chat with Grok 3 and Grok Vision directly in your browser
+- **📄 Page Content Analysis**: Ask questions about any webpage content
+- **📸 Screenshot Analysis**: Take screenshots and get AI-powered insights
+- **🔄 Real-time Streaming**: See responses being generated in real-time
+- **💬 Tab-Specific Conversations**: Each tab maintains its own conversation history
+- **🎯 Context-Aware**: Automatically extracts and analyzes page content
+- **⚡ Keyboard Shortcuts**: Quick access with customizable shortcuts
 
-The extension offers three different ways to provide context to Grok:
+## 🎯 How It Works
 
-### 1. **No Context** (Default)
+1. **Install the Extension**: Get it from the [Chrome Web Store](https://chromewebstore.google.com/detail/grok-everywhere/onddcpahoenacjcgkldfegocdgdgajpn)
+2. **Set Your API Key**: Enter your xAI API key to get started
+3. **Choose Context Mode**:
+   - **Content Mode**: Analyze webpage text and content
+   - **Screenshot Mode**: Take screenshots for visual analysis
+   - **No Context**: General conversations with Grok
+4. **Ask Questions**: Get intelligent responses based on the current page
+5. **Streaming Responses**: Watch as Grok generates responses in real-time
 
-- Ask questions without any webpage context
-- **Uses**: Grok 3 (text-only model)
-- Perfect for general questions or when you want Grok's knowledge only
+## 🎨 Perfect For
 
-### 2. **Content Context** ⭐ (Recommended)
+- **Researchers**: Analyze web content and get summaries
+- **Students**: Get help understanding complex web pages
+- **Professionals**: Quick insights from technical documentation
+- **Content Creators**: Analyze and understand web content
+- **Anyone**: Get AI assistance while browsing the web
 
-- Automatically extracts relevant text content from the current webpage
-- **Uses**: Grok 3 (text-only model)
-- Sends cleaned, relevant content to Grok for better assistance
-- More efficient than screenshots and provides better text understanding
+## 🔒 Privacy & Security
 
-### 3. **Screenshot Context**
+- **Local Storage**: Your API key is stored locally in your browser
+- **No Server Data**: No data is sent to our servers
+- **Tab-Specific**: Conversations are stored per tab and cleared when tabs are closed
+- **Direct API**: All communication goes directly to xAI's secure API
 
-- Takes a screenshot of the current browser view
-- **Uses**: Grok Vision (multimodal model)
-- Useful for visual content, layouts, or when you need Grok to see the actual page appearance
+## 📋 Requirements
 
-## Intelligent Model Selection
+- **xAI API key** (get one at [https://x.ai](https://x.ai))
+- **Chrome browser**
+- **Internet connection**
 
-The extension automatically selects the optimal Grok model based on your context:
+## ⌨️ Keyboard Shortcuts
 
-- **Grok 3**: Used for text-only conversations (no context or content context)
+- **Ctrl+Shift+S** (Mac: **Cmd+Shift+S**): Take screenshot and send to Grok
+- **Ctrl+Shift+C** (Mac: **Cmd+Shift+C**): Extract page content and send to Grok
 
-  - Faster responses
-  - Lower cost
-  - Better for text analysis and general questions
+## 🛠️ Development
 
-- **Grok Vision**: Used when screenshots are involved
-  - Can analyze images and visual content
-  - Understands layouts, charts, and visual elements
-  - Perfect for visual questions and analysis
+### Prerequisites
 
-The model selection is automatic and transparent - you'll see which model is being used in the interface.
+- Node.js
+- Chrome browser
 
-## Keyboard Shortcuts
+### Installation
 
-- **`Ctrl+Shift+\` (Windows) / `Cmd+Shift+\` (Mac)**: Toggle the side panel
-- **`Ctrl+Shift+C` (Windows) / `Cmd+Shift+C` (Mac)**: Extract page content and prepare for chat
-- **`Ctrl+Shift+S` (Windows) / `Cmd+Shift+S` (Mac)**: Take screenshot and prepare for chat
+```bash
+git clone https://github.com/yourusername/grok-everywhere.git
+cd grok-everywhere
+```
 
-## Installation
+### Building
 
-Since this extension isn't available in the Chrome Web Store, you'll need to install it manually. Here's how:
+```bash
+# Build the extension
+npm run build
 
-1. Download and unzip the extension files to a folder on your computer
+# Or manually copy files to dist/ directory
+```
 
-2. Open Google Chrome and go to the Extensions page:
+### Loading in Chrome
 
-   - Click the three dots menu (⋮) in the top-right corner
-   - Go to "Extensions"
-   - Or type `chrome://extensions/` in the address bar
+1. Open Chrome and go to `chrome://extensions/`
+2. Enable "Developer mode"
+3. Click "Load unpacked"
+4. Select the `dist/` folder
 
-3. Enable "Developer mode":
+## 📦 Chrome Web Store
 
-   - Look for the "Developer mode" toggle in the top-right corner
-   - Turn it ON
+**[Install Grok Everywhere](https://chromewebstore.google.com/detail/grok-everywhere/onddcpahoenacjcgkldfegocdgdgajpn)**
 
-4. Load the extension:
+## 🤝 Contributing
 
-   - Click "Load unpacked" button in the top-left
-   - Navigate to the folder where you unzipped the extension files
-   - Select the `dist` folder
-   - Click "Select Folder"
+Contributions are welcome! Please feel free to submit a Pull Request.
 
-5. The extension is now installed! You should see the Grok icon in your Chrome toolbar.
+## 📄 License
 
-## How to Use
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-1. Click the Grok icon in your Chrome toolbar to open the side panel
+## 🆘 Support
 
-   - Or use the keyboard shortcut `Ctrl+Shift+\` (Windows) / `Cmd+Shift+\` (Mac) to toggle the side panel
+For support, feature requests, or bug reports:
 
-2. Log in with your Grok account credentials
+- Open an issue on GitHub
+- Check the [Chrome Web Store listing](https://chromewebstore.google.com/detail/grok-everywhere/onddcpahoenacjcgkldfegocdgdgajpn) for updates
 
-3. **Choose your context mode**:
+---
 
-   - Click the context button (Chrome icon) to cycle through modes
-   - **Blue border**: Content context (recommended)
-   - **Orange border**: Screenshot context
-   - **No border**: No context
-   - The info panel shows which model will be used
-   - The model badge above the input shows the current model
-
-4. Start chatting with Grok!
-   - Ask questions about any webpage you're viewing
-   - Use keyboard shortcuts for quick context extraction
-   - Get instant help and explanations
-   - See which model is being used for each response
-
-## Troubleshooting
-
-If the extension isn't working:
-
-1. Make sure you selected the correct `dist` folder during installation
-2. Try disabling and re-enabling the extension
-3. Check that you're logged in to your Grok account
-4. Verify your API key is correctly set
-
-## Note
-
-This extension requires a valid Grok account to use. If you don't have one, you'll need to sign up at [x.ai](https://x.ai) first.
+**Note**: This extension requires an xAI API key to function. You can get one by signing up at [https://x.ai](https://x.ai).
