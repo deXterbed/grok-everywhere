@@ -19,6 +19,11 @@ chrome.runtime.onConnect.addListener((port) => {
 
 // Handle tab activation to refresh side panel content
 chrome.tabs.onActivated.addListener(async (activeInfo) => {
+  // Only proceed if there are connected side panel ports
+  if (sidePanelPorts.size === 0) {
+    return;
+  }
+
   try {
     // Get the newly activated tab
     const tab = await chrome.tabs.get(activeInfo.tabId);
@@ -110,8 +115,12 @@ chrome.tabs.onActivated.addListener(async (activeInfo) => {
 
 // Handle tab updates to refresh content when page changes
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
-  // Only handle when the page is complete and it's the active tab
-  if (changeInfo.status === "complete" && tab.active) {
+  // Only handle when the page is complete, it's the active tab, and side panel is open
+  if (
+    changeInfo.status === "complete" &&
+    tab.active &&
+    sidePanelPorts.size > 0
+  ) {
     try {
       // Skip if it's a special page where content scripts can't run
       const url = new URL(tab.url);

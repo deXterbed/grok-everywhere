@@ -11,8 +11,6 @@ async function captureVisibleArea() {
 // Function to extract relevant webpage content
 function extractPageContent() {
   try {
-    console.log("Starting content extraction for:", window.location.href);
-
     // Create a clone of the document body to avoid modifying the original page
     const bodyClone = document.body.cloneNode(true);
 
@@ -51,7 +49,6 @@ function extractPageContent() {
       const element = bodyClone.querySelector(selector);
       if (element && element.textContent.trim().length > 100) {
         mainElement = element;
-        console.log("Found main content using selector:", selector);
         break;
       }
     }
@@ -59,7 +56,6 @@ function extractPageContent() {
     // If no main content found, use body clone but filter out navigation and other non-content elements
     if (!mainElement) {
       mainElement = bodyClone;
-      console.log("Using document.body clone as main content");
     }
 
     // Extract text content from the clone
@@ -76,7 +72,6 @@ function extractPageContent() {
     const maxLength = 8000; // Conservative limit
     if (content.length > maxLength) {
       content = content.substring(0, maxLength) + "...";
-      console.log("Content truncated to", maxLength, "characters");
     }
 
     // Add page metadata
@@ -86,14 +81,9 @@ function extractPageContent() {
 
     const finalContent = metadata + content;
 
-    console.log(
-      "Content extraction completed. Total length:",
-      finalContent.length
-    );
-
     // Ensure we have meaningful content
     if (finalContent.length < 100) {
-      console.warn("Extracted content seems too short, might be an issue");
+      return null;
     }
 
     return finalContent;
@@ -126,8 +116,6 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
 
   if (request.action === "extractContent") {
     try {
-      console.log("Content extraction requested for:", window.location.href);
-
       // Check if we're on a valid page
       if (!document.body) {
         console.warn("Document body not available");
@@ -136,7 +124,6 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
       }
 
       const content = extractPageContent();
-      console.log("Content extraction result:", content ? "success" : "failed");
 
       if (!content || content.length < 50) {
         console.warn(
@@ -150,7 +137,6 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
         return true;
       }
 
-      console.log("Sending extracted content back, length:", content.length);
       sendResponse({ content: content });
     } catch (error) {
       console.error("Content extraction error:", error);
