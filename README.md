@@ -63,7 +63,7 @@ A powerful Chrome extension that brings xAI's Grok AI assistant directly into yo
 ### Installation
 
 ```bash
-git clone https://github.com/yourusername/grok-everywhere.git
+git clone https://github.com/deXterbed/grok-everywhere.git
 cd grok-everywhere
 ```
 
