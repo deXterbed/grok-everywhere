@@ -145,16 +145,7 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
     return true; // Keep the message channel open for async response
   }
 
-  if (request.action === "broadcastToSidePanel") {
-    // Broadcast message to sidepanel via postMessage
-    window.postMessage(
-      {
-        source: "content-script",
-        ...request.message,
-      },
-      "*"
-    );
-  }
+  // Broadcast functionality removed - no longer needed
 
   if (request.action === "ping") {
     // Simple ping to check if content script is available

@@ -10,14 +10,11 @@ document.addEventListener("DOMContentLoaded", async () => {
   let contextMode = "content"; // 'none', 'content', 'screenshot'
   let isShortcutMode = false;
   let lastAutoScreenshot = null; // Track auto mode screenshot separately
-  let port = null; // Store port at module level
-
   // Load API key
   const result = await chrome.storage.local.get(["xaiApiKey"]);
   apiKey = result.xaiApiKey;
 
   if (apiKey) {
-    showContextLoading("Validating API key...");
     apiKeyInput.value = "API key saved";
     apiKeyInput.classList.add("saved");
     saveApiKeyButton.classList.add("active");
@@ -26,9 +23,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     document.getElementById("header-container").style.display = "none";
     // Ensure chat container is properly positioned
     document.getElementById("chat-container").style.marginTop = "0px";
-    setTimeout(() => {
-      hideContextLoading();
-    }, 300);
   } else {
     messageInput.disabled = true;
     // Ensure save button is visible when no API key is set
@@ -258,43 +252,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   }
 
-  // Connect to the background script and handle reconnection
-  function connectToBackground() {
-    if (port) {
-      try {
-        port.disconnect();
-      } catch (e) {
-        console.error("Error disconnecting port:", e);
-      }
-    }
-
-    showContextLoading("Connecting...");
-    port = chrome.runtime.connect({ name: "sidepanel" });
-
-    port.onMessage.addListener((message) => {
-      if (message.action === "clearConversation") {
-        clearConversation();
-      }
-
-      if (message.action === "tabSwitched") {
-        handleTabSwitch(message);
-      }
-    });
-
-    port.onDisconnect.addListener(() => {
-      port = null;
-      showContextLoading("Reconnecting...");
-      setTimeout(connectToBackground, 1000);
-    });
-
-    // Hide loading after successful connection
-    setTimeout(() => {
-      hideContextLoading();
-    }, 500);
-  }
-
-  // Initial connection
-  connectToBackground();
+  // No port connections needed - extension works independently
 
   // Initialize current tab ID and load conversation
   async function initializeCurrentTab() {
@@ -304,28 +262,115 @@ document.addEventListener("DOMContentLoaded", async () => {
         currentWindow: true,
       });
       if (tab) {
-        currentTabId = tab.id;
-        // Load conversation for current tab
-        const result = await chrome.storage.local.get([
-          `conversationHistory_${tab.id}`,
-        ]);
-        if (result[`conversationHistory_${tab.id}`]) {
-          conversationHistory = limitMessageHistory(
-            result[`conversationHistory_${tab.id}`]
-          );
-          // Restore the conversation UI
-          conversationHistory.forEach((msg) => {
-            addMessage(msg.content, msg.isUser, msg.screenshot, msg.model);
-          });
-        }
+        await switchToTab(tab.id);
       }
     } catch (error) {
       console.error("Error initializing current tab:", error);
     }
   }
 
+  // Switch to a specific tab and load its conversation
+  async function switchToTab(tabId) {
+    try {
+      // Only switch if it's actually a different tab
+      if (currentTabId === tabId) {
+        return;
+      }
+
+      // Save current conversation before switching
+      if (currentTabId && conversationHistory.length > 0) {
+        await chrome.storage.local.set({
+          [`conversationHistory_${currentTabId}`]: conversationHistory,
+        });
+      }
+
+      // Update current tab ID
+      currentTabId = tabId;
+
+      // Load conversation for the new tab
+      const result = await chrome.storage.local.get([
+        `conversationHistory_${tabId}`,
+      ]);
+
+      // Clear current conversation display
+      chatContainer.innerHTML = "";
+      conversationHistory = [];
+
+      if (result[`conversationHistory_${tabId}`]) {
+        conversationHistory = limitMessageHistory(
+          result[`conversationHistory_${tabId}`]
+        );
+        // Restore the conversation UI
+        conversationHistory.forEach((msg) => {
+          addMessage(msg.content, msg.isUser, msg.screenshot, msg.model);
+        });
+      }
+
+      // Clear any existing context when switching tabs
+      currentContent = null;
+      currentScreenshot = null;
+      isShortcutMode = false;
+
+      // Tab switching completed
+
+      console.log(
+        `Switched to tab ${tabId}, loaded ${conversationHistory.length} messages`
+      );
+    } catch (error) {
+      // Handle cases where tab doesn't exist or other errors
+      if (error.message && error.message.includes("No tab with id")) {
+        console.log(
+          `Tab ${tabId} no longer exists, resetting to current active tab`
+        );
+        // Reset to the currently active tab
+        try {
+          const [activeTab] = await chrome.tabs.query({
+            active: true,
+            currentWindow: true,
+          });
+          if (activeTab && activeTab.id !== currentTabId) {
+            await switchToTab(activeTab.id);
+          }
+        } catch (resetError) {
+          console.error("Error resetting to active tab:", resetError);
+        }
+      } else {
+        console.error("Error switching to tab:", error);
+      }
+    }
+  }
+
+  // Tab indicator functionality removed - no visual tab names shown
+
+  // Check current tab periodically and switch if needed
+  async function checkCurrentTab() {
+    try {
+      const [tab] = await chrome.tabs.query({
+        active: true,
+        currentWindow: true,
+      });
+
+      if (tab && tab.id !== currentTabId) {
+        await switchToTab(tab.id);
+      }
+    } catch (error) {
+      console.error("Error checking current tab:", error);
+    }
+  }
+
   // Initialize on load
   initializeCurrentTab();
+
+  // Check for tab changes every 2 seconds
+  setInterval(checkCurrentTab, 2000);
+
+  // Also check when the sidepanel window gains focus (more responsive)
+  window.addEventListener("focus", checkCurrentTab);
+  window.addEventListener("visibilitychange", () => {
+    if (!document.hidden) {
+      checkCurrentTab();
+    }
+  });
 
   // Keep track of conversation history per tab
   let conversationHistory = [];
@@ -370,7 +415,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   function clearConversation() {
-    showContextLoading("Clearing conversation...");
     conversationHistory = [];
     // Clear conversation for current tab
     if (currentTabId) {
@@ -379,65 +423,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     chatContainer.innerHTML = "";
     messageInput.value = "";
     messageInput.focus();
-    setTimeout(() => {
-      hideContextLoading();
-    }, 500); // Brief delay to show the loading state
   }
 
-  function handleTabSwitch(message) {
-    showContextLoading("Switching to new tab...");
-
-    // Save current conversation for the previous tab
-    if (currentTabId && conversationHistory.length > 0) {
-      chrome.storage.local.set({
-        [`conversationHistory_${currentTabId}`]: conversationHistory,
-      });
-    }
-
-    // Get the new tab ID from the message
-    const newTabId = message.tabId || Date.now().toString(); // Fallback if no tabId provided
-    currentTabId = newTabId;
-
-    // Load conversation for the new tab
-    chrome.storage.local.get([`conversationHistory_${newTabId}`], (result) => {
-      if (result[`conversationHistory_${newTabId}`]) {
-        conversationHistory = limitMessageHistory(
-          result[`conversationHistory_${newTabId}`]
-        );
-        // Restore the conversation UI
-        chatContainer.innerHTML = "";
-        conversationHistory.forEach((msg) => {
-          addMessage(msg.content, msg.isUser, msg.screenshot, msg.model);
-        });
-      } else {
-        // No previous conversation for this tab, start fresh
-        conversationHistory = [];
-        chatContainer.innerHTML = "";
-      }
-    });
-
-    // Update current content based on the new tab
-    if (message.available && message.content) {
-      currentContent = message.content;
-      // If we're in content mode, enable shortcut mode with the new content
-      if (contextMode === "content") {
-        isShortcutMode = true;
-        showContextLoading("New page content loaded");
-      }
-    } else {
-      currentContent = null;
-      isShortcutMode = false;
-      showContextLoading("Content not available on this page");
-    }
-
-    // Update the UI to reflect the new tab
-    updateContextModeUI();
-
-    // Hide loading after a brief delay
-    setTimeout(() => {
-      hideContextLoading();
-    }, 1000);
-  }
+  // Tab switching functionality removed - users can manually extract content when needed
 
   async function takeScreenshot() {
     try {
@@ -739,7 +727,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             hideLoading();
             hideTypingIndicator();
             addMessage(
-              `⚠️ Content extraction not available: ${availability.reason}. Try using a different context mode or navigate to a regular webpage.`,
+              `⚠ Content extraction not available: ${availability.reason}. Try using a different context mode or navigate to a regular webpage.`,
               false
             );
             return;
@@ -759,7 +747,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             hideLoading();
             hideTypingIndicator();
             addMessage(
-              "⚠️ Content extraction failed. The page might be protected, not fully loaded, or the content script isn't available. Try refreshing the page or using a different context mode.",
+              "⚠ Content extraction failed. The page might be protected, not fully loaded, or the content script isn't available. Try refreshing the page or using a different context mode.",
               false
             );
             return;
@@ -925,7 +913,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     // Add streaming cursor
     const cursor = document.createElement("span");
     cursor.className = "streaming-cursor";
-    cursor.textContent = "▋";
+    cursor.textContent = "|";
     cursor.style.cssText = `
       animation: blink 1s infinite;
       color: var(--text-primary);
@@ -973,9 +961,9 @@ document.addEventListener("DOMContentLoaded", async () => {
 
       let modelText = "";
       if (model === "grok-2-vision") {
-        modelText = "🤖 Using Grok Vision (image analysis)";
+        modelText = "Using Grok Vision (image analysis)";
       } else if (model === "grok-3-mini") {
-        modelText = "🤖 Using Grok 3 (text analysis)";
+        modelText = "Using Grok 3 (text analysis)";
       }
 
       modelIndicator.textContent = modelText;
@@ -1170,9 +1158,9 @@ document.addEventListener("DOMContentLoaded", async () => {
 
       let modelText = "";
       if (model === "grok-2-vision") {
-        modelText = "🤖 Using Grok Vision (image analysis)";
+        modelText = "Using Grok Vision (image analysis)";
       } else if (model === "grok-3-mini") {
-        modelText = "🤖 Using Grok 3 (text analysis)";
+        modelText = "Using Grok 3 (text analysis)";
       }
 
       modelIndicator.textContent = modelText;
