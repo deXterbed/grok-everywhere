@@ -1,3 +1,118 @@
+// Enhanced markdown parser for rendering Grok responses
+function parseMarkdown(text) {
+  if (!text) return "";
+
+  // Escape HTML first to prevent XSS
+  let html = text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+
+  // Split into lines for better processing
+  const lines = html.split("\n");
+  const processedLines = [];
+  let inCodeBlock = false;
+  let codeBlockContent = [];
+  let codeBlockLanguage = "";
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+
+    // Handle code blocks
+    if (line.trim().startsWith("```")) {
+      if (!inCodeBlock) {
+        // Starting a code block
+        inCodeBlock = true;
+        codeBlockLanguage = line.trim().substring(3).trim();
+        codeBlockContent = [];
+      } else {
+        // Ending a code block
+        inCodeBlock = false;
+        const codeContent = codeBlockContent.join("\n");
+        const languageClass = codeBlockLanguage
+          ? ` class="language-${codeBlockLanguage}"`
+          : "";
+        processedLines.push(
+          `<pre><code${languageClass}>${codeContent}</code></pre>`
+        );
+        codeBlockContent = [];
+        codeBlockLanguage = "";
+      }
+      continue;
+    }
+
+    if (inCodeBlock) {
+      codeBlockContent.push(line);
+      continue;
+    }
+
+    // Process non-code block lines
+    let processedLine = line;
+
+    // Headers (must be at start of line)
+    if (line.match(/^#{1,6}\s/)) {
+      const headerMatch = line.match(/^(#{1,6})\s(.+)$/);
+      if (headerMatch) {
+        const level = headerMatch[1].length;
+        const text = headerMatch[2];
+        processedLine = `<h${level}>${text}</h${level}>`;
+      }
+    }
+    // Blockquotes
+    else if (line.match(/^>\s/)) {
+      const quoteText = line.substring(2);
+      processedLine = `<blockquote>${quoteText}</blockquote>`;
+    }
+    // Lists
+    else if (line.match(/^[\*\-\+]\s/)) {
+      const listText = line.substring(2);
+      processedLine = `<li>${listText}</li>`;
+    } else if (line.match(/^\d+\.\s/)) {
+      const listText = line.replace(/^\d+\.\s/, "");
+      processedLine = `<li>${listText}</li>`;
+    }
+    // Regular paragraphs
+    else if (line.trim()) {
+      processedLine = `<p>${line}</p>`;
+    }
+    // Empty lines
+    else {
+      processedLine = "";
+    }
+
+    processedLines.push(processedLine);
+  }
+
+  // Join processed lines
+  html = processedLines.join("\n");
+
+  // Process inline elements
+  // Bold and italic
+  html = html.replace(/\*\*\*(.*?)\*\*\*/g, "<strong><em>$1</em></strong>");
+  html = html.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
+  html = html.replace(/\*(.*?)\*/g, "<em>$1</em>");
+
+  // Inline code (but not inside code blocks)
+  html = html.replace(/`([^`]+)`/g, "<code>$1</code>");
+
+  // Links
+  html = html.replace(
+    /\[([^\]]+)\]\(([^)]+)\)/g,
+    '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>'
+  );
+
+  // Wrap consecutive list items in ul
+  html = html.replace(/(<li>.*?<\/li>)(\s*<li>.*?<\/li>)*/gs, function (match) {
+    const items = match.match(/<li>.*?<\/li>/g);
+    if (items && items.length > 0) {
+      return "<ul>" + items.join("") + "</ul>";
+    }
+    return match;
+  });
+
+  return html;
+}
+
 document.addEventListener("DOMContentLoaded", async () => {
   const messageInput = document.getElementById("message-input");
   const chatContainer = document.getElementById("chat-container");
@@ -10,6 +125,48 @@ document.addEventListener("DOMContentLoaded", async () => {
   let contextMode = "content"; // 'none', 'content', 'screenshot'
   let isShortcutMode = false;
   let lastAutoScreenshot = null; // Track auto mode screenshot separately
+  let isUserAtBottom = true; // Track if user is at bottom of chat
+  let userScrolledUp = false; // Track if user manually scrolled up
+
+  // Function to check if user is at the bottom of the chat
+  function isAtBottom() {
+    const threshold = 50; // pixels from bottom to consider "at bottom"
+    return (
+      chatContainer.scrollTop + chatContainer.clientHeight >=
+      chatContainer.scrollHeight - threshold
+    );
+  }
+
+  // Function to scroll to bottom only if user is at bottom
+  function scrollToBottomIfNeeded() {
+    if (isUserAtBottom && !userScrolledUp) {
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+  }
+
+  // Function to force scroll to bottom (for new messages)
+  function scrollToBottom() {
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+    isUserAtBottom = true;
+    userScrolledUp = false;
+  }
+
+  // Add scroll event listener to track user scroll position
+  chatContainer.addEventListener("scroll", () => {
+    const wasAtBottom = isUserAtBottom;
+    isUserAtBottom = isAtBottom();
+
+    // If user scrolled up from bottom, mark as user-initiated scroll
+    if (wasAtBottom && !isUserAtBottom) {
+      userScrolledUp = true;
+    }
+
+    // If user scrolled back to bottom, reset the flag
+    if (isUserAtBottom) {
+      userScrolledUp = false;
+    }
+  });
+
   // Load API key
   const result = await chrome.storage.local.get(["xaiApiKey"]);
   apiKey = result.xaiApiKey;
@@ -295,6 +452,9 @@ document.addEventListener("DOMContentLoaded", async () => {
       // Clear current conversation display
       chatContainer.innerHTML = "";
       conversationHistory = [];
+      // Reset scroll position when switching tabs
+      isUserAtBottom = true;
+      userScrolledUp = false;
 
       if (result[`conversationHistory_${tabId}`]) {
         conversationHistory = limitMessageHistory(
@@ -423,6 +583,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     chatContainer.innerHTML = "";
     messageInput.value = "";
     messageInput.focus();
+    // Reset scroll position when clearing conversation
+    isUserAtBottom = true;
+    userScrolledUp = false;
   }
 
   // Tab switching functionality removed - users can manually extract content when needed
@@ -924,9 +1087,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     wrapperDiv.appendChild(messageDiv);
     chatContainer.appendChild(wrapperDiv);
 
-    // Scroll to bottom
+    // Scroll to bottom for new streaming messages
     setTimeout(() => {
-      chatContainer.scrollTop = chatContainer.scrollHeight;
+      scrollToBottom();
     }, 10);
 
     return textSpan;
@@ -945,10 +1108,15 @@ document.addEventListener("DOMContentLoaded", async () => {
       cursor.remove();
     }
 
-    // Update the text content
+    // Update the text content with markdown rendering
     const textSpan = contentDiv.querySelector("span");
     if (textSpan) {
-      textSpan.textContent = content;
+      // For assistant messages, render markdown; for user messages, keep as plain text
+      if (model) {
+        textSpan.innerHTML = parseMarkdown(content);
+      } else {
+        textSpan.textContent = content;
+      }
     }
 
     // Add model indicator for assistant messages
@@ -980,12 +1148,13 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const textSpan = wrapperDiv.querySelector(".message-content span");
     if (textSpan) {
-      textSpan.textContent = content;
+      // For streaming content, render markdown as it comes in
+      textSpan.innerHTML = parseMarkdown(content);
     }
 
-    // Scroll to bottom to follow the streaming content
+    // Scroll to bottom during streaming only if user is at bottom
     setTimeout(() => {
-      chatContainer.scrollTop = chatContainer.scrollHeight;
+      scrollToBottomIfNeeded();
     }, 10);
   }
 
@@ -1131,7 +1300,12 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     // Create text content
     const textSpan = document.createElement("span");
-    textSpan.textContent = content;
+    // For assistant messages, render markdown; for user messages, keep as plain text
+    if (!isUser) {
+      textSpan.innerHTML = parseMarkdown(content);
+    } else {
+      textSpan.textContent = content;
+    }
     contentDiv.appendChild(textSpan);
 
     // Add small inline image if screenshot exists
@@ -1176,9 +1350,11 @@ document.addEventListener("DOMContentLoaded", async () => {
       // If this is the first message, scroll to top to make sure it's visible
       if (chatContainer.children.length === 1) {
         chatContainer.scrollTop = 0;
+        isUserAtBottom = false;
+        userScrolledUp = true;
       } else {
         // Otherwise scroll to bottom for new messages
-        chatContainer.scrollTop = chatContainer.scrollHeight;
+        scrollToBottom();
       }
     }, 10);
   }
@@ -1211,4 +1387,68 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // Add test function to window for debugging
   window.testLoadingStates = testLoadingStates;
+
+  // Test function to demonstrate markdown rendering
+  function testMarkdownRendering() {
+    console.log("Testing markdown rendering...");
+
+    const testMarkdown = `# Test Markdown Rendering
+
+This is a **bold** text and this is *italic* text with some very long content that should wrap properly and not get cut off.
+
+## Code Examples
+
+Here's some inline \`code\` and a code block:
+
+\`\`\`python
+def hello_world():
+    print("Hello, World!")
+    return "This is a very long line that should wrap properly in the code block without getting truncated"
+\`\`\`
+
+## Lists
+
+- First item with some very long content that should wrap properly
+- Second item
+- Third item with more content
+
+1. Numbered item one
+2. Numbered item two with long content
+
+## Links
+
+[Visit Google](https://google.com)
+
+> This is a blockquote example with some very long content that should wrap properly and not get cut off at the end of the line.
+
+### Final Note
+
+The markdown should render properly in the sidebar with proper word wrapping and no content truncation!`;
+
+    addMessage(testMarkdown, false, null, "grok-3-mini");
+  }
+
+  // Add test function to window for debugging
+  window.testMarkdownRendering = testMarkdownRendering;
+
+  // Test function to demonstrate smart auto-scroll behavior
+  function testSmartAutoScroll() {
+    console.log("Testing smart auto-scroll behavior...");
+    console.log("Current scroll position:", chatContainer.scrollTop);
+    console.log("Scroll height:", chatContainer.scrollHeight);
+    console.log("Client height:", chatContainer.clientHeight);
+    console.log("Is user at bottom:", isUserAtBottom);
+    console.log("User scrolled up:", userScrolledUp);
+
+    // Add a test message to demonstrate the behavior
+    addMessage(
+      "This is a test message. Auto-scroll will continue if you're at the bottom, but will stop if you scroll up to read previous messages. Try scrolling up and then sending another message to see the behavior.",
+      false,
+      null,
+      "grok-3-mini"
+    );
+  }
+
+  // Add test function to window for debugging
+  window.testSmartAutoScroll = testSmartAutoScroll;
 });

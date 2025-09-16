@@ -81,11 +81,15 @@
 
       .message-content {
         font-size: 14px;
-        line-height: 1.4;
+        line-height: 1.5;
         overflow-wrap: break-word;
-        white-space: pre-wrap;
+        word-wrap: break-word;
+        word-break: break-word;
+        white-space: normal;
         font-weight: 400;
         color: var(--text-primary);
+        max-width: 100%;
+        width: 100%;
       }
 
       .message-wrapper.user .avatar {
@@ -564,6 +568,135 @@
         display: inline-block;
         border: 1px solid rgba(255, 255, 255, 0.1);
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+      }
+
+      /* Markdown styling for message content */
+      .message-content h1 {
+        font-size: 1.5em;
+        font-weight: bold;
+        margin: 0.5em 0;
+        color: var(--text-primary);
+        border-bottom: 1px solid var(--border-light);
+        padding-bottom: 0.25em;
+      }
+
+      .message-content h2 {
+        font-size: 1.3em;
+        font-weight: bold;
+        margin: 0.4em 0;
+        color: var(--text-primary);
+        border-bottom: 1px solid var(--border-light);
+        padding-bottom: 0.2em;
+      }
+
+      .message-content h3 {
+        font-size: 1.1em;
+        font-weight: bold;
+        margin: 0.3em 0;
+        color: var(--text-primary);
+      }
+
+      .message-content p {
+        margin: 0.5em 0;
+        line-height: 1.5;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+        word-break: break-word;
+        max-width: 100%;
+        box-sizing: border-box;
+      }
+
+      .message-content ul, .message-content ol {
+        margin: 0.5em 0;
+        padding-left: 1.5em;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+        max-width: 100%;
+        box-sizing: border-box;
+      }
+
+      .message-content li {
+        margin: 0.25em 0;
+        line-height: 1.4;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+        word-break: break-word;
+        max-width: 100%;
+        box-sizing: border-box;
+      }
+
+      .message-content code {
+        background-color: rgba(64, 64, 64, 0.8);
+        color: #f8f8f2;
+        padding: 0.2em 0.4em;
+        border-radius: 3px;
+        font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+        font-size: 0.9em;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+        white-space: pre-wrap;
+        display: inline-block;
+        max-width: 100%;
+        box-sizing: border-box;
+      }
+
+      .message-content pre {
+        background-color: rgba(32, 32, 32, 0.9);
+        color: #f8f8f2;
+        padding: 1em;
+        border-radius: 8px;
+        overflow-x: auto;
+        overflow-y: visible;
+        margin: 0.5em 0;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+        font-size: 0.9em;
+        line-height: 1.4;
+        white-space: pre;
+        word-wrap: normal;
+        max-width: 100%;
+        box-sizing: border-box;
+      }
+
+      .message-content pre code {
+        background: none;
+        padding: 0;
+        border: none;
+        font-size: inherit;
+        white-space: pre;
+        word-wrap: normal;
+        overflow-wrap: normal;
+        display: block;
+        width: 100%;
+      }
+
+      .message-content a {
+        color: #4a9eff;
+        text-decoration: underline;
+        transition: color 0.2s ease;
+      }
+
+      .message-content a:hover {
+        color: #6bb6ff;
+      }
+
+      .message-content strong {
+        font-weight: bold;
+        color: var(--text-primary);
+      }
+
+      .message-content em {
+        font-style: italic;
+        color: var(--text-primary);
+      }
+
+      .message-content blockquote {
+        border-left: 4px solid rgba(74, 158, 255, 0.5);
+        margin: 0.5em 0;
+        padding-left: 1em;
+        color: var(--text-secondary);
+        font-style: italic;
       }
     </style>
   </head>
