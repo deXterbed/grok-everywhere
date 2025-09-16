@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.0] - 2024-12-19
+
+### Added
+- **Conversation History Context**: Full conversation history is now sent to Grok API for better context and follow-up questions
+- **Clear History Button**: Added trash icon button in top-right corner to clear conversation history with confirmation dialog
+- **Enhanced Error Logging**: Improved API error reporting with minimal, focused logging for better debugging
+
+### Changed
+- **API Request Structure**: Conversation history is now included in API requests for better context awareness
+- **Model-Specific Image Handling**: Smart filtering of image content based on model capabilities (Grok 3 vs Grok Vision)
+
+---
+
 ## [1.1.0] - 2024-12-19
 
 ### Added

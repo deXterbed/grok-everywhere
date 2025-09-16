@@ -890,7 +890,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             hideLoading();
             hideTypingIndicator();
             addMessage(
-              `⚠ Content extraction not available: ${availability.reason}. Try using a different context mode or navigate to a regular webpage.`,
+              `[!] Content extraction not available: ${availability.reason}. Please refresh the page and try again.`,
               false
             );
             return;
@@ -957,6 +957,30 @@ document.addEventListener("DOMContentLoaded", async () => {
   const sendButton = document.querySelector(".send-button");
   sendButton.addEventListener("click", handleMessageSend);
 
+  // Handle clear history button click
+  const clearHistoryButton = document.getElementById("clear-history-button");
+  clearHistoryButton.addEventListener("click", () => {
+    // Show confirmation dialog
+    if (
+      confirm(
+        "Are you sure you want to clear the conversation history? This action cannot be undone."
+      )
+    ) {
+      // Add visual feedback
+      clearHistoryButton.style.background = "rgba(255, 107, 107, 0.3)";
+      clearHistoryButton.style.opacity = "0.7";
+
+      // Clear the conversation
+      clearConversation();
+
+      // Reset button appearance after a short delay
+      setTimeout(() => {
+        clearHistoryButton.style.background = "";
+        clearHistoryButton.style.opacity = "1";
+      }, 1000);
+    }
+  });
+
   // Listen for context messages (from shortcut)
   chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === "addScreenshotContext") {
@@ -987,8 +1011,13 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
 
   async function sendMessage(message, screenshot, content) {
-    // Determine which model will be used
-    const model = screenshot ? "grok-2-vision" : "grok-3-mini";
+    // Determine which model will be used based on context mode
+    let model;
+    if (screenshot) {
+      model = "Grok Vision";
+    } else {
+      model = "Grok 3";
+    }
 
     // Add message to UI first
     addMessage(message, true, screenshot, model);
@@ -1023,7 +1052,9 @@ document.addEventListener("DOMContentLoaded", async () => {
         message,
         screenshot,
         content,
-        streamingMessageId
+        streamingMessageId,
+        model,
+        apiKey
       );
 
       // Hide typing indicator
@@ -1128,9 +1159,9 @@ document.addEventListener("DOMContentLoaded", async () => {
       modelIndicator.style.fontStyle = "italic";
 
       let modelText = "";
-      if (model === "grok-2-vision") {
+      if (model === "Grok Vision" || model === "grok-2-vision") {
         modelText = "Using Grok Vision (image analysis)";
-      } else if (model === "grok-3-mini") {
+      } else if (model === "Grok 3" || model === "grok-3-mini") {
         modelText = "Using Grok 3 (text analysis)";
       }
 
@@ -1162,11 +1193,21 @@ document.addEventListener("DOMContentLoaded", async () => {
     message,
     screenshot,
     content,
-    streamingMessageId
+    streamingMessageId,
+    model,
+    apiKey
   ) {
     try {
-      // Select the best model based on context type
-      const model = screenshot ? "grok-2-vision" : "grok-3-mini";
+      // Use the model passed from sendMessage function
+      // This ensures consistency between UI display and API request
+
+      // Convert display model names to API model names
+      let apiModel;
+      if (model === "Grok Vision" || model === "grok-2-vision") {
+        apiModel = "grok-2-vision";
+      } else {
+        apiModel = "grok-3-mini";
+      }
 
       const messages = [
         {
@@ -1176,9 +1217,47 @@ document.addEventListener("DOMContentLoaded", async () => {
         },
       ];
 
+      // Add conversation history to provide context
+      conversationHistory.forEach((msg) => {
+        if (msg.isUser) {
+          // For user messages, check if they have screenshots
+          if (msg.screenshot && apiModel === "grok-2-vision") {
+            // Only include images for Grok Vision model
+            messages.push({
+              role: "user",
+              content: [
+                {
+                  type: "text",
+                  text: msg.content,
+                },
+                {
+                  type: "image_url",
+                  image_url: {
+                    url: msg.screenshot,
+                  },
+                },
+              ],
+            });
+          } else {
+            // For Grok 3 or messages without screenshots, send text only
+            messages.push({
+              role: "user",
+              content: msg.content,
+            });
+          }
+        } else {
+          // For assistant messages
+          messages.push({
+            role: "assistant",
+            content: msg.content,
+          });
+        }
+      });
+
       let contextMessage = "";
 
-      if (screenshot) {
+      if (screenshot && apiModel === "grok-2-vision") {
+        // Only include images for Grok Vision model
         contextMessage = "This is a screenshot of my current browser view:";
         messages.push({
           role: "user",
@@ -1201,6 +1280,14 @@ document.addEventListener("DOMContentLoaded", async () => {
           role: "user",
           content: contextMessage,
         });
+      } else if (screenshot && apiModel === "grok-3-mini") {
+        // For Grok 3, convert screenshot to text description
+        contextMessage =
+          "I have a screenshot of my current browser view, but I'll describe it instead since this model doesn't support images.";
+        messages.push({
+          role: "user",
+          content: contextMessage,
+        });
       }
 
       messages.push({
@@ -1215,21 +1302,25 @@ document.addEventListener("DOMContentLoaded", async () => {
           Authorization: `Bearer ${apiKey}`,
         },
         body: JSON.stringify({
-          model: model,
+          model: apiModel,
           messages: messages,
           temperature: 0.7,
           max_tokens: 4096,
           stream: true, // Enable streaming
         }),
       });
-
       if (!response.ok) {
         const errorData = await response.text();
+        console.log("API Error:", response.status, errorData);
+
         let errorMessage;
         try {
           const errorJson = JSON.parse(errorData);
-          errorMessage = errorJson.error?.message || "API request failed";
-        } catch {
+          errorMessage =
+            errorJson.error?.message ||
+            errorJson.message ||
+            "API request failed";
+        } catch (parseError) {
           errorMessage =
             errorData || `API request failed with status ${response.status}`;
         }
@@ -1331,9 +1422,9 @@ document.addEventListener("DOMContentLoaded", async () => {
       modelIndicator.style.fontStyle = "italic";
 
       let modelText = "";
-      if (model === "grok-2-vision") {
+      if (model === "Grok Vision" || model === "grok-2-vision") {
         modelText = "Using Grok Vision (image analysis)";
-      } else if (model === "grok-3-mini") {
+      } else if (model === "Grok 3" || model === "grok-3-mini") {
         modelText = "Using Grok 3 (text analysis)";
       }
 
@@ -1451,4 +1542,51 @@ The markdown should render properly in the sidebar with proper word wrapping and
 
   // Add test function to window for debugging
   window.testSmartAutoScroll = testSmartAutoScroll;
+
+  // Test function to demonstrate conversation history context
+  function testConversationHistory() {
+    console.log("Testing conversation history context...");
+    console.log(
+      "Current conversation history length:",
+      conversationHistory.length
+    );
+
+    // Add a test message to demonstrate conversation continuity
+    addMessage(
+      "This is a test message to demonstrate conversation history context. The next message should reference this one.",
+      false,
+      null,
+      "grok-3-mini"
+    );
+  }
+
+  // Add test function to window for debugging
+  window.testConversationHistory = testConversationHistory;
+
+  // Test function to demonstrate clear history functionality
+  function testClearHistory() {
+    console.log("Testing clear history functionality...");
+    console.log(
+      "Current conversation history length:",
+      conversationHistory.length
+    );
+
+    // Add some test messages first
+    addMessage(
+      "This is a test message before clearing history.",
+      false,
+      null,
+      "grok-3-mini"
+    );
+    addMessage("This is another test message.", false, null, "grok-3-mini");
+
+    console.log(
+      "Added test messages. History length:",
+      conversationHistory.length
+    );
+    console.log("Click the 'Clear History' button to test the functionality.");
+  }
+
+  // Add test function to window for debugging
+  window.testClearHistory = testClearHistory;
 });
