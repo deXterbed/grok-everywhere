@@ -223,12 +223,22 @@ document.addEventListener("DOMContentLoaded", async () => {
   apiKeyInput.addEventListener("input", async () => {
     const newValue = apiKeyInput.value.trim();
 
-    if (apiKeyInput.classList.contains("saved")) {
+    // Ignore browser-initiated input events (autofill) when key is already loaded.
+    // Only react if the user is actually typing a new key or intentionally clearing.
+    if (apiKey && apiKeyInput.classList.contains("saved")) {
+      // User is editing a saved key — un-mark as saved but don't delete yet
       apiKeyInput.classList.remove("saved");
       saveApiKeyButton.classList.remove("active");
+      // Only delete from storage if user intentionally cleared the field
+      if (!newValue) {
+        await chrome.storage.local.remove("xaiApiKey");
+        apiKey = null;
+      }
+      messageInput.disabled = !newValue;
+      return;
     }
 
-    // If the input is empty, remove the API key from storage
+    // No saved key yet — normal input handling
     if (!newValue) {
       await chrome.storage.local.remove("xaiApiKey");
       apiKey = null;
