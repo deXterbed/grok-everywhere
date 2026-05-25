@@ -1,29 +1,84 @@
-# Build notes
+# Build Pipeline
 
-## Build command
+## Prerequisites
+
+- Node.js 18+
+- npm 9+
+
+## Setup
+
+```bash
+npm install
+```
+
+## Development
+
+Watch mode — rebuilds JS on file changes:
+
+```bash
+npm run dev
+```
+
+Load the `dist/` directory as an unpacked extension in Chrome for development.
+After code changes, go to `chrome://extensions` and click the refresh button.
+
+## Production Build
 
 ```bash
 npm run build
-
-# Build output
-dist/
 ```
 
-## Build output
+Build output goes to `dist/`. JS files are minified (~60% size reduction).
+
+## Chrome Web Store Package
 
 ```bash
-dist/
+npm run zip
 ```
 
-## Build zip
+Creates `grok-everywhere.zip` from the built `dist/` directory.
+
+## Clean
 
 ```bash
-rm grok-everywhere.zip && zip -r grok-everywhere.zip dist/ -x "*.DS_Store"
-
-# Build zip output
-grok-everywhere.zip
+npm run clean
 ```
 
-## Build zip output
+Removes the `dist/` directory.
 
-grok-everywhere.zip
+## Project Structure
+
+```
+src/                    # Source files (edit these)
+  manifest.json         # Extension manifest (MV3)
+  background.js         # Service worker
+  content.js            # Content script (injected into pages)
+  sidepanel.html        # Side panel UI (inline CSS + markup)
+  sidepanel.js          # Side panel logic
+  popup.html            # Popup placeholder
+  popup.js              # Popup logic
+  icons/                # Extension icons
+  styles/               # Content script CSS
+dist/                   # Build output (gitignored, auto-generated)
+scripts/                # Build utilities
+  build.mjs             # esbuild-based build script
+  zip.mjs               # Chrome Web Store packaging script
+package.json            # Dependencies and scripts
+```
+
+## How the Build Works
+
+1. **esbuild** builds all 4 JS files as IIFE bundles
+   - `background.js`, `content.js`, `sidepanel.js`, `popup.js`
+   - IIFE format is used because Chrome content scripts can't use ES modules
+   - Minified in production, sourcemaps in dev
+   - Target: Chrome 110+
+2. **HTML files** are copied from `src/` to `dist/`
+   - `type="module"` attributes are stripped (esbuild outputs IIFE, not modules)
+   - Inline CSS stays inline (no extraction needed)
+3. **Static assets** are copied: `manifest.json`, `icons/`, `styles/`
+
+## Adding npm Dependencies
+
+When you add npm packages to the project, import them in your JS files
+and esbuild will bundle them automatically. No extra configuration needed.

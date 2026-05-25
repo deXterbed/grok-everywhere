@@ -1,13 +1,3 @@
-// Function to capture visible viewport
-async function captureVisibleArea() {
-  const dataUrl = await new Promise((resolve) => {
-    chrome.runtime.sendMessage({ action: "captureTab" }, (response) => {
-      resolve(response.dataUrl);
-    });
-  });
-  return dataUrl;
-}
-
 // Function to extract relevant webpage content
 function extractPageContent() {
   try {

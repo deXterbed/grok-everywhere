@@ -4,10 +4,6 @@ chrome.runtime.onInstalled.addListener(() => {
   chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
 });
 
-// Tab activation handling removed - no longer needed without port connections
-
-// Tab update handling removed - no longer needed without port connections
-
 // Handle tab removal to clean up chat history
 chrome.tabs.onRemoved.addListener(async (tabId, removeInfo) => {
   try {
