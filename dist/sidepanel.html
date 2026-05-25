@@ -6,7 +6,7 @@
         <link rel="stylesheet" href="styles/conversation.css" />
         <style>
             :root {
-                --text-primary: rgba(236, 236, 241, 1);
+                --text-primary: rgba(200, 200, 210, 1);
                 --text-secondary: rgba(130, 130, 148, 1);
                 --background-primary: #0e0e11;
                 --background-secondary: rgba(26, 26, 32, 0.97);
@@ -46,7 +46,7 @@
             #chat-container {
                 flex-grow: 1;
                 overflow-y: auto;
-                padding: 1rem 0 150px 0;
+                padding: 1rem 0 115px 0;
                 background-color: var(--background-primary);
                 margin-top: 0;
                 position: relative;
@@ -821,6 +821,34 @@
                 padding-left: 1em;
                 color: var(--text-secondary);
                 font-style: italic;
+            }
+
+            /* Markdown tables */
+            .message-content table {
+                border-collapse: collapse;
+                width: 100%;
+                margin: 0.5em 0;
+                font-size: 13px;
+                display: block;
+                overflow-x: auto;
+            }
+
+            .message-content th,
+            .message-content td {
+                border: 1px solid var(--border-light);
+                padding: 6px 10px;
+                text-align: left;
+                white-space: nowrap;
+            }
+
+            .message-content th {
+                background-color: rgba(124, 106, 247, 0.15);
+                color: var(--text-primary);
+                font-weight: 600;
+            }
+
+            .message-content tr:nth-child(even) td {
+                background-color: rgba(255, 255, 255, 0.03);
             }
 
             /* Scrollbar */

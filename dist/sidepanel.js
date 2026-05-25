@@ -14,19 +14,35 @@ function parseMarkdown(text) {
   let inCodeBlock = false;
   let codeBlockContent = [];
   let codeBlockLanguage = "";
+  let inTable = false;
+  let tableRows = [];
+
+  function flushTable() {
+    if (!tableRows.length) return;
+    const parsed = tableRows.map((r) =>
+      r.split("|").slice(1, -1).map((c) => c.trim()),
+    );
+    const isSep = (row) => row.every((c) => /^[\-:]+$/.test(c));
+    const headers = parsed[0];
+    const body = parsed.slice(1).filter((r) => !isSep(r));
+    const thead = `<thead><tr>${headers.map((h) => `<th>${h}</th>`).join("")}</tr></thead>`;
+    const tbody = `<tbody>${body.map((r) => `<tr>${r.map((c) => `<td>${c}</td>`).join("")}</tr>`).join("")}</tbody>`;
+    processedLines.push(`<table>${thead}${tbody}</table>`);
+    tableRows = [];
+    inTable = false;
+  }
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
 
     // Handle code blocks
     if (line.trim().startsWith("```")) {
+      flushTable();
       if (!inCodeBlock) {
-        // Starting a code block
         inCodeBlock = true;
         codeBlockLanguage = line.trim().substring(3).trim();
         codeBlockContent = [];
       } else {
-        // Ending a code block
         inCodeBlock = false;
         const codeContent = codeBlockContent.join("\n");
         const languageClass = codeBlockLanguage
@@ -44,6 +60,15 @@ function parseMarkdown(text) {
     if (inCodeBlock) {
       codeBlockContent.push(line);
       continue;
+    }
+
+    // Handle markdown tables (lines starting with |)
+    if (line.trim().startsWith("|")) {
+      inTable = true;
+      tableRows.push(line.trim());
+      continue;
+    } else if (inTable) {
+      flushTable();
     }
 
     // Process non-code block lines
@@ -82,6 +107,9 @@ function parseMarkdown(text) {
 
     processedLines.push(processedLine);
   }
+
+  // Flush any trailing table
+  flushTable();
 
   // Join processed lines
   html = processedLines.join("\n");
@@ -427,10 +455,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     contextLoading.className = "context-loading";
     contextLoading.textContent = message;
 
-    // Insert before the model badge
-    if (modelBadge && modelBadge.parentNode) {
-      inputContainer.insertBefore(contextLoading, modelBadge);
-    } else {
+    if (modelBadge && modelBadge.isConnected) {
+      modelBadge.before(contextLoading);
+    } else if (inputContainer) {
       inputContainer.appendChild(contextLoading);
     }
 
@@ -891,7 +918,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   function addRefreshButton() {
     const modelBadge = document.getElementById("model-badge");
-    if (!modelBadge) return;
+    if (!modelBadge || !modelBadge.isConnected) return;
 
     const refreshButton = document.createElement("button");
     refreshButton.className = "refresh-button";
@@ -926,7 +953,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
     });
 
-    modelBadge.parentNode.insertBefore(refreshButton, modelBadge.nextSibling);
+    modelBadge.after(refreshButton);
   }
 
   function cycleContextMode() {
