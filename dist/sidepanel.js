@@ -33,7 +33,7 @@ function parseMarkdown(text) {
           ? ` class="language-${codeBlockLanguage}"`
           : "";
         processedLines.push(
-          `<pre><code${languageClass}>${codeContent}</code></pre>`
+          `<pre><code${languageClass}>${codeContent}</code></pre>`,
         );
         codeBlockContent = [];
         codeBlockLanguage = "";
@@ -86,20 +86,31 @@ function parseMarkdown(text) {
   // Join processed lines
   html = processedLines.join("\n");
 
+  // Protect code blocks from inline processing by stashing them in placeholders
+  const codeBlocks = [];
+  html = html.replace(/<pre><code[^>]*>[\s\S]*?<\/code><\/pre>/g, (match) => {
+    codeBlocks.push(match);
+    return `%%CODEBLOCK_${codeBlocks.length - 1}%%`;
+  });
+
   // Process inline elements
   // Bold and italic
   html = html.replace(/\*\*\*(.*?)\*\*\*/g, "<strong><em>$1</em></strong>");
   html = html.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
   html = html.replace(/\*(.*?)\*/g, "<em>$1</em>");
 
-  // Inline code (but not inside code blocks)
+  // Inline code (not inside code blocks — they're stashed)
   html = html.replace(/`([^`]+)`/g, "<code>$1</code>");
 
-  // Links
-  html = html.replace(
-    /\[([^\]]+)\]\(([^)]+)\)/g,
-    '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>'
-  );
+  // Links (only allow safe protocols)
+  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (match, text, url) => {
+    const safeProtocols = /^(https?:\/\/|mailto:|ftp:\/\/|\/)/i;
+    if (safeProtocols.test(url.trim())) {
+      return `<a href="${url}" target="_blank" rel="noopener noreferrer">${text}</a>`;
+    }
+    // Strip unsafe URLs, keep the text only
+    return text;
+  });
 
   // Wrap consecutive list items in ul
   html = html.replace(/(<li>.*?<\/li>)(\s*<li>.*?<\/li>)*/gs, function (match) {
@@ -108,6 +119,11 @@ function parseMarkdown(text) {
       return "<ul>" + items.join("") + "</ul>";
     }
     return match;
+  });
+
+  // Restore stashed code blocks
+  html = html.replace(/%%CODEBLOCK_(\d+)%%/g, (match, index) => {
+    return codeBlocks[parseInt(index)] || match;
   });
 
   return html;
@@ -343,7 +359,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   function showTypingIndicator(model) {
     const modelBadge = document.getElementById("model-badge");
     const currentModelDisplay = document.getElementById(
-      "current-model-display"
+      "current-model-display",
     );
     const messageInput = document.getElementById("message-input");
     const sendButton = document.querySelector(".send-button");
@@ -376,7 +392,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   function hideTypingIndicator() {
     const modelBadge = document.getElementById("model-badge");
     const currentModelDisplay = document.getElementById(
-      "current-model-display"
+      "current-model-display",
     );
     const messageInput = document.getElementById("message-input");
     const sendButton = document.querySelector(".send-button");
@@ -436,9 +452,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
       // Save current conversation before switching
       if (currentTabId && conversationHistory.length > 0) {
-        await chrome.storage.local.set({
-          [`conversationHistory_${currentTabId}`]: conversationHistory,
-        });
+        await saveConversationHistory();
       }
 
       // Update current tab ID
@@ -458,7 +472,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
       if (result[`conversationHistory_${tabId}`]) {
         conversationHistory = limitMessageHistory(
-          result[`conversationHistory_${tabId}`]
+          result[`conversationHistory_${tabId}`],
         );
         // Restore the conversation UI
         conversationHistory.forEach((msg) => {
@@ -474,13 +488,13 @@ document.addEventListener("DOMContentLoaded", async () => {
       // Tab switching completed
 
       console.log(
-        `Switched to tab ${tabId}, loaded ${conversationHistory.length} messages`
+        `Switched to tab ${tabId}, loaded ${conversationHistory.length} messages`,
       );
     } catch (error) {
       // Handle cases where tab doesn't exist or other errors
       if (error.message && error.message.includes("No tab with id")) {
         console.log(
-          `Tab ${tabId} no longer exists, resetting to current active tab`
+          `Tab ${tabId} no longer exists, resetting to current active tab`,
         );
         // Reset to the currently active tab
         try {
@@ -544,7 +558,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     // Get all conversation history keys
     chrome.storage.local.get(null, (result) => {
       const conversationKeys = Object.keys(result).filter((key) =>
-        key.startsWith("conversationHistory_")
+        key.startsWith("conversationHistory_"),
       );
 
       if (conversationKeys.length > MAX_TABS_TO_STORE) {
@@ -558,7 +572,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         // Remove oldest conversations
         const keysToRemove = sortedKeys.slice(
           0,
-          conversationKeys.length - MAX_TABS_TO_STORE
+          conversationKeys.length - MAX_TABS_TO_STORE,
         );
         chrome.storage.local.remove(keysToRemove);
         console.log(`Cleaned up ${keysToRemove.length} old conversations`);
@@ -586,6 +600,19 @@ document.addEventListener("DOMContentLoaded", async () => {
     // Reset scroll position when clearing conversation
     isUserAtBottom = true;
     userScrolledUp = false;
+  }
+
+  // Save conversation history to storage, stripping large screenshot data
+  async function saveConversationHistory() {
+    if (!currentTabId) return;
+    const sanitized = conversationHistory.map((msg) => {
+      // Strip screenshot data URLs — they're large and re-captured on next send
+      const { screenshot, ...rest } = msg;
+      return rest;
+    });
+    await chrome.storage.local.set({
+      [`conversationHistory_${currentTabId}`]: sanitized,
+    });
   }
 
   // Tab switching functionality removed - users can manually extract content when needed
@@ -618,10 +645,10 @@ document.addEventListener("DOMContentLoaded", async () => {
                 });
               } else {
                 resolve(
-                  response || { content: null, error: "No response received" }
+                  response || { content: null, error: "No response received" },
                 );
               }
-            }
+            },
           );
         }),
         new Promise((resolve) => {
@@ -635,7 +662,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (response && response.content) {
         console.log(
           "Content extracted successfully:",
-          response.content.substring(0, 200) + "..."
+          response.content.substring(0, 200) + "...",
         );
         return response.content;
       } else {
@@ -709,7 +736,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     // Get info panel elements - handle case where they might not exist
     const currentModelDisplay = document.getElementById(
-      "current-model-display"
+      "current-model-display",
     );
 
     // Remove existing refresh button if it exists
@@ -891,7 +918,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             hideTypingIndicator();
             addMessage(
               `[!] Content extraction not available: ${availability.reason}. Please refresh the page and try again.`,
-              false
+              false,
             );
             return;
           }
@@ -911,7 +938,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             hideTypingIndicator();
             addMessage(
               "⚠ Content extraction failed. The page might be protected, not fully loaded, or the content script isn't available. Try refreshing the page or using a different context mode.",
-              false
+              false,
             );
             return;
           }
@@ -963,7 +990,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     // Show confirmation dialog
     if (
       confirm(
-        "Are you sure you want to clear the conversation history? This action cannot be undone."
+        "Are you sure you want to clear the conversation history? This action cannot be undone.",
       )
     ) {
       // Add visual feedback
@@ -1035,9 +1062,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     // Save conversation for current tab
     if (currentTabId) {
-      await chrome.storage.local.set({
-        [`conversationHistory_${currentTabId}`]: conversationHistory,
-      });
+      await saveConversationHistory();
       // Clean up old conversations periodically
       cleanupOldConversations();
     }
@@ -1054,7 +1079,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         content,
         streamingMessageId,
         model,
-        apiKey
+        apiKey,
       );
 
       // Hide typing indicator
@@ -1072,9 +1097,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
       // Save conversation for current tab
       if (currentTabId) {
-        await chrome.storage.local.set({
-          [`conversationHistory_${currentTabId}`]: conversationHistory,
-        });
+        await saveConversationHistory();
         // Clean up old conversations periodically
         cleanupOldConversations();
       }
@@ -1195,7 +1218,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     content,
     streamingMessageId,
     model,
-    apiKey
+    apiKey,
   ) {
     try {
       // Use the model passed from sendMessage function
@@ -1469,7 +1492,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         setTimeout(() => {
           hideTypingIndicator();
           console.log(
-            "Loading states test complete! Input should now be enabled and model badge restored."
+            "Loading states test complete! Input should now be enabled and model badge restored.",
           );
         }, 3000);
       }, 2000);
@@ -1536,7 +1559,7 @@ The markdown should render properly in the sidebar with proper word wrapping and
       "This is a test message. Auto-scroll will continue if you're at the bottom, but will stop if you scroll up to read previous messages. Try scrolling up and then sending another message to see the behavior.",
       false,
       null,
-      "grok-3-mini"
+      "grok-3-mini",
     );
   }
 
@@ -1548,7 +1571,7 @@ The markdown should render properly in the sidebar with proper word wrapping and
     console.log("Testing conversation history context...");
     console.log(
       "Current conversation history length:",
-      conversationHistory.length
+      conversationHistory.length,
     );
 
     // Add a test message to demonstrate conversation continuity
@@ -1556,7 +1579,7 @@ The markdown should render properly in the sidebar with proper word wrapping and
       "This is a test message to demonstrate conversation history context. The next message should reference this one.",
       false,
       null,
-      "grok-3-mini"
+      "grok-3-mini",
     );
   }
 
@@ -1568,7 +1591,7 @@ The markdown should render properly in the sidebar with proper word wrapping and
     console.log("Testing clear history functionality...");
     console.log(
       "Current conversation history length:",
-      conversationHistory.length
+      conversationHistory.length,
     );
 
     // Add some test messages first
@@ -1576,13 +1599,13 @@ The markdown should render properly in the sidebar with proper word wrapping and
       "This is a test message before clearing history.",
       false,
       null,
-      "grok-3-mini"
+      "grok-3-mini",
     );
     addMessage("This is another test message.", false, null, "grok-3-mini");
 
     console.log(
       "Added test messages. History length:",
-      conversationHistory.length
+      conversationHistory.length,
     );
     console.log("Click the 'Clear History' button to test the functionality.");
   }
