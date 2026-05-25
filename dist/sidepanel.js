@@ -782,43 +782,46 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   async function checkContentScriptAvailability() {
     try {
-      // Try to get the current tab
       const [tab] = await chrome.tabs.query({
         active: true,
         currentWindow: true,
       });
-      if (!tab) {
-        return { available: false, reason: "No active tab found" };
-      }
+      if (!tab) return { available: false, reason: "No active tab found" };
 
-      // Check if content script can be injected on this page
       const url = new URL(tab.url);
-
-      // Chrome extensions, chrome://, chrome-extension://, and some other schemes don't allow content scripts
-      if (
+      const blockedProtocol =
         url.protocol === "chrome:" ||
         url.protocol === "chrome-extension:" ||
         url.protocol === "moz-extension:" ||
         url.protocol === "edge:" ||
         url.protocol === "about:" ||
         url.protocol === "data:" ||
-        url.protocol === "view-source:"
-      ) {
+        url.protocol === "view-source:";
+
+      if (blockedProtocol) {
         return {
           available: false,
           reason: `Content scripts not allowed on ${url.protocol} pages`,
         };
       }
 
-      // Check if the page is accessible
+      // Ping first — already injected on most page loads
       try {
         await chrome.tabs.sendMessage(tab.id, { action: "ping" });
         return { available: true };
-      } catch (error) {
-        return {
-          available: false,
-          reason: "Content script not loaded on this page",
-        };
+      } catch (_) {
+        // Not loaded yet — inject programmatically (handles post-install case)
+      }
+
+      try {
+        await chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          files: ["content.js"],
+        });
+        await chrome.tabs.sendMessage(tab.id, { action: "ping" });
+        return { available: true };
+      } catch (injectError) {
+        return { available: false, reason: injectError.message };
       }
     } catch (error) {
       return { available: false, reason: error.message };
@@ -868,47 +871,41 @@ document.addEventListener("DOMContentLoaded", async () => {
         break;
     }
 
-    // Check content script availability and show warning if needed
-    checkContentScriptAvailability().then((availability) => {
-      if (contextMode === "content" && !availability.available) {
-        // Show a subtle warning in the model badge
-        if (currentModelDisplay) {
-          currentModelDisplay.textContent = "Grok 3 (Content unavailable)";
-          currentModelDisplay.style.color = "#ff6b6b";
+    // Check content script availability; auto-inject if missing, warn only for blocked pages
+    if (contextMode === "content") {
+      checkContentScriptAvailability().then((availability) => {
+        if (!availability.available) {
+          if (currentModelDisplay) {
+            currentModelDisplay.textContent = "Grok 3 (Content unavailable)";
+            currentModelDisplay.style.color = "#ff6b6b";
+          }
+          addRefreshButton();
+        } else if (currentModelDisplay) {
+          currentModelDisplay.style.color = "";
         }
-
-        // Add refresh button
-        addRefreshButton();
-      } else if (currentModelDisplay) {
-        currentModelDisplay.style.color = "";
-      }
-    });
+      });
+    } else if (currentModelDisplay) {
+      currentModelDisplay.style.color = "";
+    }
   }
 
   function addRefreshButton() {
     const modelBadge = document.getElementById("model-badge");
     if (!modelBadge) return;
 
-    // Create refresh button
     const refreshButton = document.createElement("button");
     refreshButton.className = "refresh-button";
     refreshButton.textContent = "Refresh Page";
 
-    // Add click handler
     refreshButton.addEventListener("click", async () => {
       try {
         showContextLoading("Refreshing page...");
-
-        // Get current active tab
         const [tab] = await chrome.tabs.query({
           active: true,
           currentWindow: true,
         });
         if (tab) {
-          // Reload the current tab
           await chrome.tabs.reload(tab.id);
-
-          // Wait a bit for the page to load, then check content availability again
           setTimeout(async () => {
             const availability = await checkContentScriptAvailability();
             if (availability.available) {
@@ -919,9 +916,7 @@ document.addEventListener("DOMContentLoaded", async () => {
               }, 1000);
             } else {
               showContextLoading("Content still unavailable");
-              setTimeout(() => {
-                hideContextLoading();
-              }, 1000);
+              setTimeout(() => hideContextLoading(), 1000);
             }
           }, 2000);
         }
@@ -931,7 +926,6 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
     });
 
-    // Insert the refresh button after the model badge
     modelBadge.parentNode.insertBefore(refreshButton, modelBadge.nextSibling);
   }
 
@@ -998,7 +992,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             hideLoading();
             hideTypingIndicator();
             addMessage(
-              `[!] Content extraction not available: ${availability.reason}. Please refresh the page and try again.`,
+              `[!] Content extraction not available: ${availability.reason}.`,
               false,
             );
             return;

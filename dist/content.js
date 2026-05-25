@@ -93,6 +93,10 @@ function extractPageContent() {
   }
 }
 
+// Guard against duplicate listener registration when script is injected programmatically
+if (!window.__grokContentScriptLoaded) {
+  window.__grokContentScriptLoaded = true;
+
 // Listen for messages from background script
 chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
   // console.log("Content script received message:", request.action);
@@ -154,5 +158,4 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
   }
 });
 
-// Test message to verify content script is loaded
-// console.log("Grok Everywhere content script loaded on:", window.location.href);
+} // end __grokContentScriptLoaded guard
