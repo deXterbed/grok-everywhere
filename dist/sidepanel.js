@@ -132,9 +132,12 @@ function parseMarkdown(text) {
 document.addEventListener("DOMContentLoaded", async () => {
   const messageInput = document.getElementById("message-input");
   const chatContainer = document.getElementById("chat-container");
+  // Header is always visible; set consistent top offset
+  chatContainer.style.marginTop = "50px";
   const apiKeyInput = document.getElementById("api-key-input");
   const saveApiKeyButton = document.getElementById("save-api-key");
   const imageButton = document.querySelector(".image-button");
+  const clearHistoryButton = document.getElementById("clear-history-button");
   let apiKey = null;
   let currentScreenshot = null;
   let currentContent = null;
@@ -167,6 +170,90 @@ document.addEventListener("DOMContentLoaded", async () => {
     userScrolledUp = false;
   }
 
+  // Auto-resize textarea to match content, like standard chat UIs
+  function autoResizeTextarea() {
+    messageInput.style.height = "0";
+    const scrollH = messageInput.scrollHeight;
+    const newHeight = Math.min(scrollH, 160);
+    messageInput.style.height = newHeight + "px";
+    messageInput.style.overflowY = scrollH > 160 ? "auto" : "hidden";
+  }
+
+  // Show clear-history only when an API key is set and there's conversation history
+  function updateClearHistoryVisibility() {
+    if (apiKey && chatContainer.querySelector(".message-wrapper")) {
+      clearHistoryButton.style.display = "flex";
+    } else {
+      clearHistoryButton.style.display = "none";
+    }
+  }
+
+  // Restore the empty state div after clearing the chat container
+  function restoreEmptyState() {
+    if (!chatContainer.querySelector("#empty-state")) {
+      const div = document.createElement("div");
+      div.id = "empty-state";
+      const emptyTexts = {
+        none: "Ask anything",
+        content: "Ask about this page",
+        screenshot: "Ask about screenshot",
+      };
+      const text = emptyTexts[contextMode] || "Ask anything";
+      div.innerHTML = `<img src="icons/grok.png" alt="Grok"><p>${text}</p>`;
+      chatContainer.appendChild(div);
+    }
+  }
+
+  // Switch header to page-context view and update with current tab info
+  function showPageContext() {
+    const apiKeySection = document.getElementById("api-key-section");
+    const pageContext = document.getElementById("page-context");
+    if (apiKeySection) apiKeySection.style.display = "none";
+    if (pageContext) pageContext.style.display = "flex";
+    document.getElementById("chat-container").style.marginTop = "50px";
+    updatePageContext();
+  }
+
+  // Switch header to API key entry view
+  function showApiKeySection() {
+    const apiKeySection = document.getElementById("api-key-section");
+    const pageContext = document.getElementById("page-context");
+    if (apiKeySection) apiKeySection.style.display = "flex";
+    if (pageContext) pageContext.style.display = "none";
+    document.getElementById("chat-container").style.marginTop = "50px";
+  }
+
+  // Fetch and display current tab title + URL in the header
+  async function updatePageContext() {
+    try {
+      const [tab] = await chrome.tabs.query({
+        active: true,
+        currentWindow: true,
+      });
+      if (!tab) return;
+      const titleEl = document.getElementById("page-title-text");
+      const urlEl = document.getElementById("page-url-text");
+      const faviconEl = document.getElementById("page-favicon");
+      if (titleEl) titleEl.textContent = tab.title || "Untitled page";
+      if (urlEl) {
+        try {
+          const u = new URL(tab.url);
+          urlEl.textContent = u.hostname + u.pathname;
+        } catch {
+          urlEl.textContent = tab.url || "";
+        }
+      }
+      if (faviconEl && tab.favIconUrl) {
+        faviconEl.src = tab.favIconUrl;
+        faviconEl.onerror = () => {
+          faviconEl.src = "icons/grok.png";
+        };
+      }
+    } catch (e) {
+      // ignore
+    }
+  }
+
   // Add scroll event listener to track user scroll position
   chatContainer.addEventListener("scroll", () => {
     const wasAtBottom = isUserAtBottom;
@@ -192,19 +279,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     apiKeyInput.classList.add("saved");
     saveApiKeyButton.classList.add("active");
     messageInput.disabled = false;
-    // Hide the entire header container when API key is saved
-    document.getElementById("header-container").style.display = "none";
-    // Ensure chat container is properly positioned
-    document.getElementById("chat-container").style.marginTop = "0px";
+    showPageContext();
+    updateClearHistoryVisibility();
   } else {
     messageInput.disabled = true;
-    // Ensure save button is visible when no API key is set
     saveApiKeyButton.style.display = "flex";
     apiKeyInput.style.display = "block";
-    // Show the header container when API key is not set
-    document.getElementById("header-container").style.display = "flex";
-    // Ensure chat container is properly positioned
-    document.getElementById("chat-container").style.marginTop = "48px";
+    showApiKeySection();
+    clearHistoryButton.style.display = "none";
   }
 
   // Handle API key input and save
@@ -233,6 +315,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (!newValue) {
         await chrome.storage.local.remove("xaiApiKey");
         apiKey = null;
+        clearHistoryButton.style.display = "none";
       }
       messageInput.disabled = !newValue;
       return;
@@ -257,10 +340,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       apiKeyInput.classList.remove("saved");
       saveApiKeyButton.classList.remove("active");
       messageInput.disabled = true;
-      // Show the header container when API key is removed
-      document.getElementById("header-container").style.display = "flex";
-      // Ensure chat container is properly positioned
-      document.getElementById("chat-container").style.marginTop = "48px";
+      showApiKeySection();
+      updateClearHistoryVisibility();
       hideContextLoading();
     } else {
       // If button is not active, save the new API key
@@ -273,10 +354,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         apiKeyInput.classList.add("saved");
         saveApiKeyButton.classList.add("active");
         messageInput.disabled = false;
-        // Hide the entire header container when API key is saved
-        document.getElementById("header-container").style.display = "none";
-        // Ensure chat container is properly positioned
-        document.getElementById("chat-container").style.marginTop = "0px";
+        showPageContext();
+        updateClearHistoryVisibility();
         hideContextLoading();
       }
     }
@@ -475,6 +554,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
       // Clear current conversation display
       chatContainer.innerHTML = "";
+      restoreEmptyState();
       conversationHistory = [];
       // Reset scroll position when switching tabs
       isUserAtBottom = true;
@@ -489,6 +569,8 @@ document.addEventListener("DOMContentLoaded", async () => {
           addMessage(msg.content, msg.isUser, msg.screenshot, msg.model);
         });
       }
+      updateClearHistoryVisibility();
+      if (apiKey) updatePageContext();
 
       // Clear any existing context when switching tabs
       currentContent = null;
@@ -605,11 +687,14 @@ document.addEventListener("DOMContentLoaded", async () => {
       chrome.storage.local.remove([`conversationHistory_${currentTabId}`]);
     }
     chatContainer.innerHTML = "";
+    restoreEmptyState();
     messageInput.value = "";
+    autoResizeTextarea();
     messageInput.focus();
     // Reset scroll position when clearing conversation
     isUserAtBottom = true;
     userScrolledUp = false;
+    updateClearHistoryVisibility();
   }
 
   // Save conversation history to storage, stripping large screenshot data
@@ -756,9 +841,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     // Add appropriate class and update placeholder
+    const emptyStateText = document.querySelector("#empty-state p");
     switch (contextMode) {
       case "none":
         messageInput.placeholder = "Ask anything";
+        if (emptyStateText) emptyStateText.textContent = "Ask anything";
         if (currentModelDisplay) {
           currentModelDisplay.textContent = "Grok 3";
         }
@@ -766,6 +853,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       case "content":
         imageButton.classList.add("active", "content-mode");
         messageInput.placeholder = "Ask about this page...";
+        if (emptyStateText) emptyStateText.textContent = "Ask about this page";
         if (currentModelDisplay) {
           currentModelDisplay.textContent = "Grok 3";
         }
@@ -773,6 +861,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       case "screenshot":
         imageButton.classList.add("active", "screenshot-mode");
         messageInput.placeholder = "Ask about screenshot...";
+        if (emptyStateText) emptyStateText.textContent = "Ask about screenshot";
         if (currentModelDisplay) {
           currentModelDisplay.textContent = "Grok Vision";
         }
@@ -804,25 +893,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     const refreshButton = document.createElement("button");
     refreshButton.className = "refresh-button";
     refreshButton.textContent = "Refresh Page";
-    refreshButton.style.cssText = `
-      margin-left: 8px;
-      padding: 4px 8px;
-      background: #ff6b6b;
-      color: white;
-      border: none;
-      border-radius: 4px;
-      font-size: 10px;
-      cursor: pointer;
-      transition: background-color 0.2s ease;
-    `;
-
-    // Add hover effect
-    refreshButton.addEventListener("mouseenter", () => {
-      refreshButton.style.background = "#ff5252";
-    });
-    refreshButton.addEventListener("mouseleave", () => {
-      refreshButton.style.background = "#ff6b6b";
-    });
 
     // Add click handler
     refreshButton.addEventListener("click", async () => {
@@ -892,6 +962,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const message = messageInput.value.trim();
     messageInput.value = "";
+    autoResizeTextarea();
 
     let screenshotToSend = null;
     let contentToSend = null;
@@ -990,12 +1061,23 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   });
 
+  // Auto-resize textarea as user types
+  messageInput.addEventListener("input", autoResizeTextarea);
+
   // Handle send button click
   const sendButton = document.querySelector(".send-button");
   sendButton.addEventListener("click", handleMessageSend);
 
+  // Settings button — switch back to API key entry
+  const settingsButton = document.getElementById("settings-button");
+  if (settingsButton) {
+    settingsButton.addEventListener("click", () => {
+      showApiKeySection();
+      document.getElementById("api-key-input").focus();
+    });
+  }
+
   // Handle clear history button click
-  const clearHistoryButton = document.getElementById("clear-history-button");
   clearHistoryButton.addEventListener("click", () => {
     // Show confirmation dialog
     if (
@@ -1468,6 +1550,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     messageDiv.appendChild(contentDiv);
     wrapperDiv.appendChild(messageDiv);
     chatContainer.appendChild(wrapperDiv);
+    updateClearHistoryVisibility();
 
     // Ensure the message is visible
     setTimeout(() => {
