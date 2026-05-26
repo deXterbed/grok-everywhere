@@ -11,10 +11,11 @@ A powerful Chrome extension that brings xAI's Grok AI assistant directly into yo
 - **🤖 AI-Powered Conversations**: Chat with Grok 3 and Grok Vision directly in your browser
 - **📄 Page Content Analysis**: Ask questions about any webpage content
 - **📸 Screenshot Analysis**: Take screenshots and get AI-powered insights
+- **⚡ Quick Actions**: One-click buttons to summarize the page or suggest questions
 - **🔄 Real-time Streaming**: See responses being generated in real-time
 - **💬 Tab-Specific Conversations**: Each tab maintains its own conversation history
 - **🎯 Context-Aware**: Automatically extracts and analyzes page content
-- **⚡ Keyboard Shortcuts**: Quick access with customizable shortcuts
+- **⌨️ Keyboard Shortcuts**: Quick access with customizable shortcuts
 
 ## 🎯 How It Works
 
@@ -70,10 +71,8 @@ cd grok-everywhere
 ### Building
 
 ```bash
-# Build the extension
+npm install
 npm run build
-
-# Or manually copy files to dist/ directory
 ```
 
 ### Loading in Chrome

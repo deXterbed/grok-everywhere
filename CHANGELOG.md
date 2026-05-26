@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.0] - 2026-05-26
+
+### Added
+- **Quick Action Buttons**: "Summarize this page" and "Suggest questions..." buttons shown in the empty state for one-click prompts
+- **In-Panel Confirm Dialog**: Clearing conversation history now shows a native-feeling dialog inside the panel instead of a browser confirm popup
+
+### Changed
+- Removed the faded logo/placeholder text from the empty state in favour of the quick action buttons
+
+---
+
 ## [1.2.0] - 2024-12-19
 
 ### Added
