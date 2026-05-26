@@ -560,26 +560,21 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   // Handle clear history button click
+  const confirmDialog = document.getElementById("confirm-dialog");
+  const confirmCancel = document.getElementById("confirm-cancel");
+  const confirmClear = document.getElementById("confirm-clear");
+
   clearHistoryButton.addEventListener("click", () => {
-    // Show confirmation dialog
-    if (
-      confirm(
-        "Are you sure you want to clear the conversation history? This action cannot be undone.",
-      )
-    ) {
-      // Add visual feedback
-      clearHistoryButton.style.background = "rgba(255, 107, 107, 0.3)";
-      clearHistoryButton.style.opacity = "0.7";
+    confirmDialog.style.display = "block";
+  });
 
-      // Clear the conversation
-      clearConversation();
+  confirmCancel.addEventListener("click", () => {
+    confirmDialog.style.display = "none";
+  });
 
-      // Reset button appearance after a short delay
-      setTimeout(() => {
-        clearHistoryButton.style.background = "";
-        clearHistoryButton.style.opacity = "1";
-      }, 1000);
-    }
+  confirmClear.addEventListener("click", () => {
+    confirmDialog.style.display = "none";
+    clearConversation();
   });
 
   // Listen for context messages (from shortcut)

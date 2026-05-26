@@ -107,6 +107,64 @@ html {
   display: block !important;
 }
 
+/* Confirm dialog */
+#confirm-dialog {
+  position: fixed;
+  bottom: 115px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: var(--surface-primary);
+  border: 1px solid var(--border-light);
+  border-radius: 12px;
+  padding: 14px 16px;
+  width: calc(100% - 2.5rem);
+  max-width: 340px;
+  z-index: 1100;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+}
+
+#confirm-dialog p {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.confirm-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.confirm-actions button {
+  padding: 6px 14px;
+  border-radius: 7px;
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  border: 1px solid var(--border-light);
+  transition: background-color 150ms ease;
+}
+
+#confirm-cancel {
+  background-color: transparent;
+  color: var(--text-secondary);
+}
+
+#confirm-cancel:hover {
+  background-color: rgba(255, 255, 255, 0.06);
+  color: var(--text-primary);
+}
+
+#confirm-clear {
+  background-color: rgba(255, 80, 80, 0.15);
+  border-color: rgba(255, 80, 80, 0.3);
+  color: #ff6b6b;
+}
+
+#confirm-clear:hover {
+  background-color: rgba(255, 80, 80, 0.25);
+}
+
 /* Input container */
 #input-container {
   position: fixed;
