@@ -82,6 +82,24 @@ chrome.commands.onCommand.addListener(async (command) => {
 
 // Handle messages from content script
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.action === "fetchUrl") {
+    fetch(request.url)
+      .then(async (r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        const html = await r.text();
+        const text = html
+          .replace(/<script[\s\S]*?<\/script>/gi, "")
+          .replace(/<style[\s\S]*?<\/style>/gi, "")
+          .replace(/<[^>]+>/g, " ")
+          .replace(/\s+/g, " ")
+          .trim()
+          .slice(0, 15000);
+        sendResponse({ content: text });
+      })
+      .catch((err) => sendResponse({ error: err.message }));
+    return true;
+  }
+
   if (request.action === "captureTab") {
     chrome.tabs.captureVisibleTab(
       null,

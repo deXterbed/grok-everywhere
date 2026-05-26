@@ -4,7 +4,7 @@
 
 ## What data is collected
 
-When you use the "Ask about this page" or screenshot features, the text content or screenshot of your current browser tab is sent to xAI's API (`api.x.ai`) to generate a response. This data is transmitted directly from your browser to xAI and is subject to [xAI's privacy policy](https://x.ai/privacy).
+When you use the "Ask about this page" or screenshot features, the text content or screenshot of your current browser tab is sent to xAI's API (`api.x.ai`) to generate a response. If you mention a URL in your message and Grok determines it needs to read that page, the extension will fetch that URL and send its text content to xAI's API as well. This data is transmitted directly from your browser to xAI and is subject to [xAI's privacy policy](https://x.ai/privacy).
 
 ## What data is stored locally
 

@@ -7,6 +7,8 @@ All notable changes to this project will be documented in this file.
 ### Added
 - **Quick Action Buttons**: "Summarize this page" and "Suggest questions..." buttons shown in the empty state for one-click prompts
 - **In-Panel Confirm Dialog**: Clearing conversation history now shows a native-feeling dialog inside the panel instead of a browser confirm popup
+- **Settings Panel**: Gear icon opens a dedicated settings view with API key management and dark/light theme toggle
+- **URL Fetching via Tool Calling**: Grok can now read external URLs mentioned in your message using the xAI tool calling API — no extra permissions required
 
 ### Changed
 - Removed the faded logo/placeholder text from the empty state in favour of the quick action buttons
