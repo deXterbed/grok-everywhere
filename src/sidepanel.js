@@ -25,6 +25,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const saveApiKeyButton = document.getElementById("save-api-key");
   const imageButton = document.querySelector(".image-button");
   const clearHistoryButton = document.getElementById("clear-history-button");
+  const quickActionsEl = document.getElementById("quick-actions");
   let apiKey = null;
   let currentScreenshot = null;
   let currentContent = null;
@@ -75,19 +76,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   }
 
-  // Restore the empty state div after clearing the chat container
+  // Restore quick actions after clearing the chat container
   function restoreEmptyState() {
-    if (!chatContainer.querySelector("#empty-state")) {
-      const div = document.createElement("div");
-      div.id = "empty-state";
-      const emptyTexts = {
-        none: "Ask anything",
-        content: "Ask about this page",
-        screenshot: "Ask about screenshot",
-      };
-      const text = emptyTexts[contextMode] || "Ask anything";
-      div.innerHTML = `<img src="icons/grok.png" alt="Grok"><p>${text}</p>`;
-      chatContainer.appendChild(div);
+    if (quickActionsEl && !chatContainer.querySelector("#quick-actions")) {
+      chatContainer.appendChild(quickActionsEl);
     }
   }
 
@@ -543,6 +535,20 @@ document.addEventListener("DOMContentLoaded", async () => {
   // Handle send button click
   const sendButton = document.querySelector(".send-button");
   sendButton.addEventListener("click", handleMessageSend);
+
+  // Quick action buttons
+  document.querySelectorAll(".quick-action-btn").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const prompt = btn.dataset.prompt;
+      if (!prompt || !apiKey) return;
+      if (contextMode === "none") {
+        contextMode = "content";
+        updateContextModeUI();
+      }
+      messageInput.value = prompt;
+      await handleMessageSend();
+    });
+  });
 
   // Settings button — switch back to API key entry
   const settingsButton = document.getElementById("settings-button");

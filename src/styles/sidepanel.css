@@ -796,33 +796,46 @@ html {
   background-color: rgba(255, 255, 255, 0.2);
 }
 
-/* Hide empty state when messages exist */
-#chat-container:has(.message-wrapper) #empty-state {
+/* Hide quick actions when messages exist */
+#chat-container:has(.message-wrapper) #quick-actions {
   display: none;
 }
 
-/* Empty state */
-#empty-state {
+/* Quick action buttons */
+#quick-actions {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  height: calc(100vh - 200px);
-  gap: 10px;
-  opacity: 0.4;
-  pointer-events: none;
-  user-select: none;
+  gap: 8px;
+  padding: 0 1.5rem;
+  padding-top: calc(50vh - 200px);
 }
 
-#empty-state img {
-  width: 36px;
-  height: 36px;
-  opacity: 0.6;
-  filter: grayscale(0.3);
-}
-
-#empty-state p {
-  font-size: 13px;
+.quick-action-btn {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  max-width: 280px;
+  padding: 10px 16px;
+  background-color: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-light);
+  border-radius: 10px;
   color: var(--text-secondary);
-  margin: 0;
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  text-align: left;
+  transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease;
+}
+
+.quick-action-btn:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: var(--text-primary);
+}
+
+.quick-action-btn svg {
+  flex-shrink: 0;
+  opacity: 0.5;
 }

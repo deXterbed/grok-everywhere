@@ -10,23 +10,19 @@ export function createContext({ imageButton, messageInput, getContextMode, setCo
     const existingRefreshButton = document.querySelector(".refresh-button");
     if (existingRefreshButton) existingRefreshButton.remove();
 
-    const emptyStateText = document.querySelector("#empty-state p");
     switch (contextMode) {
       case "none":
         messageInput.placeholder = "Ask anything";
-        if (emptyStateText) emptyStateText.textContent = "Ask anything";
         if (currentModelDisplay) currentModelDisplay.textContent = "Grok 3";
         break;
       case "content":
         imageButton.classList.add("active", "content-mode");
         messageInput.placeholder = "Ask about this page...";
-        if (emptyStateText) emptyStateText.textContent = "Ask about this page";
         if (currentModelDisplay) currentModelDisplay.textContent = "Grok 3";
         break;
       case "screenshot":
         imageButton.classList.add("active", "screenshot-mode");
         messageInput.placeholder = "Ask about screenshot...";
-        if (emptyStateText) emptyStateText.textContent = "Ask about screenshot";
         if (currentModelDisplay) currentModelDisplay.textContent = "Grok Vision";
         break;
     }
