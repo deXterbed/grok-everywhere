@@ -149,9 +149,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   });
 
-  // Load API key
-  const result = await chrome.storage.local.get(["xaiApiKey"]);
+  // Load theme and API key
+  const result = await chrome.storage.local.get(["xaiApiKey", "theme"]);
   apiKey = result.xaiApiKey;
+  const savedTheme = result.theme || "dark";
+  document.documentElement.dataset.theme = savedTheme;
 
   if (apiKey) {
     apiKeyInput.value = "API key saved";
@@ -550,14 +552,61 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   });
 
-  // Settings button — switch back to API key entry
-  const settingsButton = document.getElementById("settings-button");
-  if (settingsButton) {
-    settingsButton.addEventListener("click", () => {
-      showApiKeySection();
-      document.getElementById("api-key-input").focus();
+  // Settings panel
+  const settingsView = document.getElementById("settings-view");
+  const settingsApiInput = document.getElementById("settings-api-input");
+  const settingsApiSave = document.getElementById("settings-api-save");
+
+  function openSettings() {
+    settingsApiInput.value = apiKey || "";
+    settingsApiSave.textContent = "Save";
+    settingsApiSave.classList.remove("saved");
+    updateThemeButtons();
+    settingsView.style.display = "flex";
+  }
+
+  function closeSettings() {
+    settingsView.style.display = "none";
+  }
+
+  function updateThemeButtons() {
+    const current = document.documentElement.dataset.theme || "dark";
+    document.querySelectorAll(".theme-btn").forEach((btn) => {
+      btn.classList.toggle("active", btn.dataset.theme === current);
     });
   }
+
+  const settingsButton = document.getElementById("settings-button");
+  if (settingsButton) {
+    settingsButton.addEventListener("click", openSettings);
+  }
+
+  document.getElementById("settings-close").addEventListener("click", closeSettings);
+
+  settingsApiSave.addEventListener("click", async () => {
+    const newKey = settingsApiInput.value.trim();
+    if (!newKey) return;
+    await chrome.storage.local.set({ xaiApiKey: newKey });
+    apiKey = newKey;
+    messageInput.disabled = false;
+    showPageContext();
+    updateClearHistoryVisibility();
+    settingsApiSave.textContent = "Saved";
+    settingsApiSave.classList.add("saved");
+    setTimeout(() => {
+      settingsApiSave.textContent = "Save";
+      settingsApiSave.classList.remove("saved");
+    }, 2000);
+  });
+
+  document.querySelectorAll(".theme-btn").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const theme = btn.dataset.theme;
+      document.documentElement.dataset.theme = theme;
+      await chrome.storage.local.set({ theme });
+      updateThemeButtons();
+    });
+  });
 
   // Handle clear history button click
   const confirmDialog = document.getElementById("confirm-dialog");
