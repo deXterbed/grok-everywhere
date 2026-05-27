@@ -1,6 +1,6 @@
 {
   "name": "grok-everywhere",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "private": true,
   "description": "Grok in your browser sidepanel — Chrome Extension",
   "scripts": {
