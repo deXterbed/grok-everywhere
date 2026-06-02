@@ -6,7 +6,7 @@ function extractPageContent() {
 
     // Remove script and style elements from the clone only
     const elementsToRemove = bodyClone.querySelectorAll(
-      "script, style, noscript, iframe, embed, object, nav, header, footer, .nav, .header, .footer, .sidebar, .menu"
+      "script, style, noscript, iframe, embed, object, nav, header, footer, .nav, .header, .footer, .sidebar, .menu",
     );
     elementsToRemove.forEach((el) => {
       if (el.parentNode) {
@@ -87,65 +87,69 @@ function extractPageContent() {
 if (!window.__grokContentScriptLoaded) {
   window.__grokContentScriptLoaded = true;
 
-// Listen for messages from background script
-chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
-  // console.log("Content script received message:", request.action);
+  // Listen for messages from background script
+  chrome.runtime.onMessage.addListener(
+    async (request, sender, sendResponse) => {
+      // console.log("Content script received message:", request.action);
 
-  if (request.action === "takeScreenshot") {
-    try {
-      // Request screenshot from background script
-      const response = await new Promise((resolve) => {
-        chrome.runtime.sendMessage({ action: "captureTab" }, resolve);
-      });
+      if (request.action === "takeScreenshot") {
+        try {
+          // Request screenshot from background script
+          const response = await new Promise((resolve) => {
+            chrome.runtime.sendMessage({ action: "captureTab" }, resolve);
+          });
 
-      // Forward screenshot to background script
-      chrome.runtime.sendMessage({
-        action: "screenshotTaken",
-        dataUrl: response.dataUrl,
-      });
-    } catch (error) {
-      console.error("Screenshot error:", error);
-    }
-  }
-
-  if (request.action === "extractContent") {
-    try {
-      // Check if we're on a valid page
-      if (!document.body) {
-        console.warn("Document body not available");
-        sendResponse({ content: null, error: "Document body not available" });
-        return true;
+          // Forward screenshot to background script
+          chrome.runtime.sendMessage({
+            action: "screenshotTaken",
+            dataUrl: response.dataUrl,
+          });
+        } catch (error) {
+          console.error("Screenshot error:", error);
+        }
       }
 
-      const content = extractPageContent();
+      if (request.action === "extractContent") {
+        try {
+          // Check if we're on a valid page
+          if (!document.body) {
+            console.warn("Document body not available");
+            sendResponse({
+              content: null,
+              error: "Document body not available",
+            });
+            return true;
+          }
 
-      if (!content || content.length < 50) {
-        console.warn(
-          "Content extraction returned insufficient content, length:",
-          content ? content.length : 0
-        );
-        sendResponse({
-          content: null,
-          error: "Insufficient content extracted",
-        });
-        return true;
+          const content = extractPageContent();
+
+          if (!content || content.length < 50) {
+            console.warn(
+              "Content extraction returned insufficient content, length:",
+              content ? content.length : 0,
+            );
+            sendResponse({
+              content: null,
+              error: "Insufficient content extracted",
+            });
+            return true;
+          }
+
+          sendResponse({ content: content });
+        } catch (error) {
+          console.error("Content extraction error:", error);
+          sendResponse({ content: null, error: error.message });
+        }
+        return true; // Keep the message channel open for async response
       }
 
-      sendResponse({ content: content });
-    } catch (error) {
-      console.error("Content extraction error:", error);
-      sendResponse({ content: null, error: error.message });
-    }
-    return true; // Keep the message channel open for async response
-  }
+      // Broadcast functionality removed - no longer needed
 
-  // Broadcast functionality removed - no longer needed
-
-  if (request.action === "ping") {
-    // Simple ping to check if content script is available
-    sendResponse({ status: "ok" });
-    return true;
-  }
-});
-
+      if (request.action === "ping") {
+        // Simple ping to check if content script is available
+        sendResponse({ status: "ok" });
+        return true;
+      }
+    },
+  );
 } // end __grokContentScriptLoaded guard

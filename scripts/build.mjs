@@ -32,7 +32,6 @@ const esbuildConfig = {
     resolve(srcDir, "background.js"),
     resolve(srcDir, "content.js"),
     resolve(srcDir, "sidepanel.js"),
-    resolve(srcDir, "popup.js"),
   ],
   bundle: true,
   outdir: distDir,
@@ -61,7 +60,7 @@ if (isWatch) {
 
 // ── Copy HTML files ─────────────────────────────────────────────────
 // Remove type="module" from script tags — esbuild outputs IIFE, not modules.
-for (const htmlFile of ["sidepanel.html", "popup.html"]) {
+for (const htmlFile of ["sidepanel.html"]) {
   const src = resolve(srcDir, htmlFile);
   const dest = resolve(distDir, htmlFile);
   if (existsSync(src)) {
