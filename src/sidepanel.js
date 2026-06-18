@@ -563,10 +563,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     settingsApiSave.classList.remove("saved");
     updateThemeButtons();
     settingsView.style.display = "flex";
+    chatContainer.style.display = "none";
+    if (inputContainer) inputContainer.style.display = "none";
   }
 
   function closeSettings() {
     settingsView.style.display = "none";
+    chatContainer.style.display = "flex";
+    if (inputContainer) inputContainer.style.display = "flex";
   }
 
   function updateThemeButtons() {
@@ -577,11 +581,14 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   const settingsButton = document.getElementById("settings-button");
+  const inputContainer = document.getElementById("input-container");
   if (settingsButton) {
     settingsButton.addEventListener("click", openSettings);
   }
 
-  document.getElementById("settings-close").addEventListener("click", closeSettings);
+  document
+    .getElementById("settings-close")
+    .addEventListener("click", closeSettings);
 
   settingsApiSave.addEventListener("click", async () => {
     const newKey = settingsApiInput.value.trim();
