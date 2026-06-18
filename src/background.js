@@ -1,9 +1,3 @@
-// Create context menu when extension is installed
-chrome.runtime.onInstalled.addListener(() => {
-  // Configure the side panel to open when the action icon is clicked
-  chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
-});
-
 // Handle tab removal to clean up chat history
 chrome.tabs.onRemoved.addListener(async (tabId, removeInfo) => {
   try {
@@ -16,17 +10,20 @@ chrome.tabs.onRemoved.addListener(async (tabId, removeInfo) => {
   }
 });
 
-// Handle extension icon click
-chrome.action.onClicked.addListener(async (tab) => {
-  // Ensure the panel is enabled for this tab
-  try {
-    await chrome.sidePanel.setOptions({
-      tabId: tab.id,
-      enabled: true,
-    });
-  } catch (error) {
-    console.error("Error enabling panel:", error);
-  }
+// Handle extension icon click — open the panel only for this tab. The manifest
+// has no global side_panel.default_path, so the panel exists only on tabs we
+// explicitly enable here; other tabs show no panel. Chrome remembers the
+// per-tab state, so the panel reappears when returning to this tab.
+// setOptions() and open() must run synchronously (no await before open),
+// otherwise Chrome rejects open() as not being a user gesture.
+chrome.action.onClicked.addListener((tab) => {
+  chrome.sidePanel
+    .setOptions({ tabId: tab.id, path: "sidepanel.html", enabled: true })
+    .catch((error) => console.error("Error enabling panel:", error));
+
+  chrome.sidePanel
+    .open({ tabId: tab.id })
+    .catch((error) => console.error("Error opening panel:", error));
 });
 
 // Handle keyboard command

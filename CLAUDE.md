@@ -42,8 +42,16 @@ Sidepanel (sidepanel.js) ←→ Background (background.js) ←→ Content Script
 ```
 
 - **Sidepanel** is the main UI — sends messages, renders responses, manages conversation history
-- **Background service worker** is stateless — relays messages, handles tab capture (screenshots), and does URL fetching for the `fetch_url` tool
+- **Background service worker** is stateless — relays messages, handles tab capture (screenshots), does URL fetching for the `fetch_url` tool, and opens the side panel per tab
 - **Content script** is injected into `<all_urls>` — extracts page text content and captures screenshots on demand
+
+### Per-Tab Side Panel
+
+The side panel is opened **per tab**, not globally. Key constraints (learned the hard way):
+
+- **No `side_panel` key in `manifest.json`.** A `side_panel.default_path` registers the panel *globally*, so it appears on every tab — `onActivated`/`enabled:false` toggling cannot reliably override it. Omit the manifest key entirely.
+- The panel path is set only per tab in `background.js` on `chrome.action.onClicked`: `setOptions({ tabId, path: "sidepanel.html", enabled: true })` then `open({ tabId })`. With no global default, tabs you never opened it on simply show no panel, and Chrome remembers the per-tab enabled state so it reappears when you return.
+- **`setOptions()` and `open()` must run synchronously** in the click handler — no `await` before `open()`, or Chrome rejects it with "`sidePanel.open()` may only be called in response to a user gesture." Use `.catch()` for error handling, not `try/await`.
 
 ### Context Modes
 

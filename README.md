@@ -14,6 +14,7 @@ A powerful Chrome extension that brings xAI's Grok AI assistant directly into yo
 - **⚡ Quick Actions**: One-click buttons to summarize the page or suggest questions
 - **🔄 Real-time Streaming**: See responses being generated in real-time
 - **💬 Tab-Specific Conversations**: Each tab maintains its own conversation history
+- **🪟 Per-Tab Side Panel**: The panel opens only on the tab you click it on and stays closed on others
 - **🎯 Context-Aware**: Automatically extracts and analyzes page content
 - **🌐 URL Fetching**: Mention a URL and Grok can read and analyze it
 - **🎨 Theme Support**: Dark and light themes for comfortable use
@@ -86,7 +87,7 @@ npm install
 
 The extension has three main parts:
 - **Sidepanel** (`sidepanel.js`) — the chat UI you interact with
-- **Background worker** (`background.js`) — relays messages, captures screenshots, fetches URLs
+- **Background worker** (`background.js`) — relays messages, captures screenshots, fetches URLs, opens the side panel per tab
 - **Content script** (`content.js`) — injected into web pages to extract text content
 
 Messages flow: `Sidepanel ↔ Background ↔ Content Script ↔ Web Page`
