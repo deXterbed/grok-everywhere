@@ -122,6 +122,10 @@ npm run clean    # Remove dist/
 
 Import npm packages normally in JS files; esbuild bundles them automatically.
 
+### Releasing
+
+Version lives in **two** files that must be kept in sync: `package.json` and `src/manifest.json`. Bump both, add a dated entry to `CHANGELOG.md` (newest at top), run `npm run build`, commit, then tag `vX.Y.Z`.
+
 ## Commands
 
 | Script | Description |

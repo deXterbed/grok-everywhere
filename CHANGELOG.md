@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.5.0] - 2026-06-18
+
+### Added
+- **Selectable Models**: Choose your text and vision models in Settings, persisted across sessions
+- **Screenshot Lightbox**: Click a screenshot in the chat to view it full-size
+- **LaTeX Math Rendering**: Math in responses is rendered with KaTeX
+
+### Fixed
+- **Per-Tab Side Panel**: The side panel now opens only on the tab you click it on instead of globally across all tabs
+- **Light Theme**: Fixed button visibility and the settings panel overlay in light mode
+
+---
+
 ## [1.4.0] - 2026-05-27
 
 ### Added
