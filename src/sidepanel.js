@@ -32,8 +32,119 @@ document.addEventListener("DOMContentLoaded", async () => {
   let contextMode = "content"; // 'none', 'content', 'screenshot'
   let isShortcutMode = false;
   let lastAutoScreenshot = null; // Track auto mode screenshot separately
+  // ── Lightbox references ────────────────────────────────────────────
+  const lightbox = document.getElementById("screenshot-lightbox");
+  const lightboxImg = lightbox.querySelector(".screenshot-lightbox-image");
+  const lightboxClose = lightbox.querySelector(".screenshot-lightbox-close");
+  const lightboxPrev = lightbox.querySelector(".screenshot-lightbox-prev");
+  const lightboxNext = lightbox.querySelector(".screenshot-lightbox-next");
+  let lightboxImages = [];
+  let lightboxIndex = -1;
+
+  function openLightbox(index) {
+    if (index < 0 || index >= lightboxImages.length) return;
+    lightboxIndex = index;
+    lightboxImg.src = lightboxImages[index];
+    lightbox.style.display = "flex";
+    lightboxPrev.style.display = lightboxImages.length > 1 ? "block" : "none";
+    lightboxNext.style.display = lightboxImages.length > 1 ? "block" : "none";
+  }
+
+  function closeLightbox() {
+    lightbox.style.display = "none";
+    lightboxImg.src = "";
+  }
+
+  lightboxClose.addEventListener("click", closeLightbox);
+  lightbox.addEventListener("click", (e) => {
+    if (e.target === lightbox) closeLightbox();
+  });
+  lightboxPrev.addEventListener("click", () => {
+    openLightbox(lightboxIndex - 1);
+  });
+  lightboxNext.addEventListener("click", () => {
+    openLightbox(lightboxIndex + 1);
+  });
+  document.addEventListener("keydown", (e) => {
+    if (lightbox.style.display !== "flex") return;
+    if (e.key === "Escape") closeLightbox();
+    if (e.key === "ArrowLeft") openLightbox(lightboxIndex - 1);
+    if (e.key === "ArrowRight") openLightbox(lightboxIndex + 1);
+  });
+
   let isUserAtBottom = true; // Track if user is at bottom of chat
   let userScrolledUp = false; // Track if user manually scrolled up
+
+  // ── Model definitions ──────────────────────────────────────────────
+  // Based on xAI docs — active models as of June 2026
+  const TEXT_MODELS = [
+    {
+      id: "grok-4.3",
+      label: "Grok 4.3",
+      description: "Flagship — best for chat & content",
+    },
+    {
+      id: "grok-4.20-0309-reasoning",
+      label: "Grok 4.20 Reasoning",
+      description: "Low hallucination, strong tool calling",
+    },
+    {
+      id: "grok-4.20-0309-non-reasoning",
+      label: "Grok 4.20 (fast)",
+      description: "Low latency, non-thinking",
+    },
+    {
+      id: "grok-4.20-multi-agent-0309",
+      label: "Grok 4.20 Multi-Agent",
+      description: "Multi-agent research, 2M context",
+    },
+    {
+      id: "grok-build-0.1",
+      label: "Grok Build 0.1",
+      description: "Fast coding specialist (vision-capable)",
+    },
+  ];
+
+  const VISION_MODELS = [
+    {
+      id: "grok-4.3",
+      label: "Grok 4.3",
+      description: "Flagship — supports image input",
+    },
+    {
+      id: "grok-build-0.1",
+      label: "Grok Build 0.1",
+      description: "Fast coding with vision",
+    },
+  ];
+
+  // Selected model IDs (default to the recommended ones)
+  let textModel = "grok-4.3";
+  let visionModel = "grok-4.3";
+
+  const modelSelectEl = document.getElementById("model-text-select");
+  const visionSelectEl = document.getElementById("model-vision-select");
+
+  function populateModelSelect(selectEl, models, currentId) {
+    selectEl.innerHTML = "";
+    models.forEach((m) => {
+      const opt = document.createElement("option");
+      opt.value = m.id;
+      opt.textContent = m.label;
+      if (m.id === currentId) opt.selected = true;
+      selectEl.appendChild(opt);
+    });
+  }
+
+  function getTextModelLabel() {
+    const m = TEXT_MODELS.find((m) => m.id === textModel);
+    return m ? m.label : textModel;
+  }
+
+  function getVisionModelLabel() {
+    const m = VISION_MODELS.find((m) => m.id === visionModel);
+    return m ? m.label : visionModel;
+  }
 
   // Function to check if user is at the bottom of the chat
   function isAtBottom() {
@@ -149,11 +260,22 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   });
 
-  // Load theme and API key
-  const result = await chrome.storage.local.get(["xaiApiKey", "theme"]);
+  // Load theme, API key, and model settings
+  const result = await chrome.storage.local.get([
+    "xaiApiKey",
+    "theme",
+    "textModel",
+    "visionModel",
+  ]);
   apiKey = result.xaiApiKey;
   const savedTheme = result.theme || "dark";
   document.documentElement.dataset.theme = savedTheme;
+  if (result.textModel) textModel = result.textModel;
+  if (result.visionModel) visionModel = result.visionModel;
+
+  // Populate model selects with saved values
+  populateModelSelect(modelSelectEl, TEXT_MODELS, textModel);
+  populateModelSelect(visionSelectEl, VISION_MODELS, visionModel);
 
   if (apiKey) {
     apiKeyInput.value = "API key saved";
@@ -256,6 +378,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         currentScreenshot = null;
         currentContent = null;
       },
+      getTextModelLabel,
+      getVisionModelLabel,
     });
 
   // Set initial context mode and update UI
@@ -410,6 +534,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       chrome.storage.local.remove([`conversationHistory_${currentTabId}`]);
     }
     chatContainer.innerHTML = "";
+    lightboxImages = [];
+    lightboxIndex = -1;
     restoreEmptyState();
     messageInput.value = "";
     autoResizeTextarea();
@@ -466,7 +592,11 @@ document.addEventListener("DOMContentLoaded", async () => {
           const availability = await checkContentScriptAvailability();
           if (!availability.available) {
             hideLoading();
-            hideTypingIndicator(contextMode);
+            hideTypingIndicator(
+              contextMode === "screenshot"
+                ? getVisionModelLabel()
+                : getTextModelLabel(),
+            );
             addMessage(
               `[!] Content extraction not available: ${availability.reason}.`,
               false,
@@ -486,7 +616,11 @@ document.addEventListener("DOMContentLoaded", async () => {
           // If content extraction still failed, show error to user
           if (!contentToSend || contentToSend.length < 50) {
             hideLoading();
-            hideTypingIndicator(contextMode);
+            hideTypingIndicator(
+              contextMode === "screenshot"
+                ? getVisionModelLabel()
+                : getTextModelLabel(),
+            );
             addMessage(
               "⚠ Content extraction failed. The page might be protected, not fully loaded, or the content script isn't available. Try refreshing the page or using a different context mode.",
               false,
@@ -502,7 +636,9 @@ document.addEventListener("DOMContentLoaded", async () => {
       hideLoading();
 
       // Determine which model will be used for typing indicator
-      const model = screenshotToSend ? "Grok Vision" : "Grok 3";
+      const model = screenshotToSend
+        ? getVisionModelLabel()
+        : getTextModelLabel();
       showTypingIndicator(model);
 
       await sendMessage(message, screenshotToSend, contentToSend);
@@ -518,7 +654,11 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
       }
       hideLoading();
-      hideTypingIndicator(contextMode);
+      hideTypingIndicator(
+        contextMode === "screenshot"
+          ? getVisionModelLabel()
+          : getTextModelLabel(),
+      );
       throw error;
     }
   }
@@ -561,6 +701,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     settingsApiInput.value = apiKey || "";
     settingsApiSave.textContent = "Save";
     settingsApiSave.classList.remove("saved");
+    // Sync select values to current state before opening
+    modelSelectEl.value = textModel;
+    visionSelectEl.value = visionModel;
     updateThemeButtons();
     settingsView.style.display = "flex";
     chatContainer.style.display = "none";
@@ -569,7 +712,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   function closeSettings() {
     settingsView.style.display = "none";
-    chatContainer.style.display = "flex";
+    chatContainer.style.display = "block";
     if (inputContainer) inputContainer.style.display = "flex";
   }
 
@@ -613,6 +756,19 @@ document.addEventListener("DOMContentLoaded", async () => {
       await chrome.storage.local.set({ theme });
       updateThemeButtons();
     });
+  });
+
+  // Model selection change handlers
+  modelSelectEl.addEventListener("change", async () => {
+    textModel = modelSelectEl.value;
+    await chrome.storage.local.set({ textModel });
+    updateContextModeUI();
+  });
+
+  visionSelectEl.addEventListener("change", async () => {
+    visionModel = visionSelectEl.value;
+    await chrome.storage.local.set({ visionModel });
+    updateContextModeUI();
   });
 
   // Handle clear history button click
@@ -663,12 +819,12 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
 
   async function sendMessage(message, screenshot, content) {
-    // Determine which model will be used based on context mode
+    // Determine which model ID to use based on context mode
     let model;
     if (screenshot) {
-      model = "Grok Vision";
+      model = visionModel;
     } else {
-      model = "Grok 3";
+      model = textModel;
     }
 
     // Add message to UI first
@@ -709,8 +865,13 @@ document.addEventListener("DOMContentLoaded", async () => {
         onStream: updateStreamingContent,
       });
 
+      // Determine label for the badge
+      const modelLabel = screenshot
+        ? getVisionModelLabel()
+        : getTextModelLabel();
+
       // Hide typing indicator
-      hideTypingIndicator(contextMode);
+      hideTypingIndicator(modelLabel);
 
       // Add reply to conversation history
       conversationHistory.push({
@@ -732,8 +893,13 @@ document.addEventListener("DOMContentLoaded", async () => {
       // Update the streaming message with final content
       updateStreamingMessage(streamingMessageId, reply, model);
     } catch (error) {
+      // Determine label for the badge
+      const modelLabel = screenshot
+        ? getVisionModelLabel()
+        : getTextModelLabel();
+
       // Hide typing indicator on error
-      hideTypingIndicator(contextMode);
+      hideTypingIndicator(modelLabel);
       throw error;
     }
   }
@@ -809,10 +975,14 @@ document.addEventListener("DOMContentLoaded", async () => {
       modelIndicator.style.fontStyle = "italic";
 
       let modelText = "";
-      if (model === "Grok Vision" || model === "grok-2-vision") {
-        modelText = "Using Grok Vision (image analysis)";
-      } else if (model === "Grok 3" || model === "grok-3-mini") {
-        modelText = "Using Grok 3 (text analysis)";
+      // Look up the label from either model list
+      const textDef = TEXT_MODELS.find((m) => m.id === model);
+      const visionDef = VISION_MODELS.find((m) => m.id === model);
+      const def = textDef || visionDef;
+      if (def) {
+        modelText = `Using ${def.label}`;
+      } else {
+        modelText = `Using ${model}`;
       }
 
       modelIndicator.textContent = modelText;
@@ -863,13 +1033,16 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (screenshot) {
       const img = document.createElement("img");
       img.src = screenshot;
-      img.style.height = "1.2em";
-      img.style.width = "auto";
-      img.style.verticalAlign = "middle";
-      img.style.marginLeft = "0.5em";
-      img.style.display = "inline-block";
-      img.style.borderRadius = "4px";
-      img.style.border = "4px solid #BCDCF5";
+      img.className = "screenshot-thumb";
+
+      // Register this screenshot for lightbox navigation
+      const screenshotIndex = lightboxImages.length;
+      lightboxImages.push(screenshot);
+      img.addEventListener("click", (e) => {
+        e.stopPropagation();
+        openLightbox(screenshotIndex);
+      });
+
       contentDiv.appendChild(img);
     }
 
@@ -882,10 +1055,14 @@ document.addEventListener("DOMContentLoaded", async () => {
       modelIndicator.style.fontStyle = "italic";
 
       let modelText = "";
-      if (model === "Grok Vision" || model === "grok-2-vision") {
-        modelText = "Using Grok Vision (image analysis)";
-      } else if (model === "Grok 3" || model === "grok-3-mini") {
-        modelText = "Using Grok 3 (text analysis)";
+      // Look up the label from either model list
+      const textDef = TEXT_MODELS.find((m) => m.id === model);
+      const visionDef = VISION_MODELS.find((m) => m.id === model);
+      const def = textDef || visionDef;
+      if (def) {
+        modelText = `Using ${def.label}`;
+      } else {
+        modelText = `Using ${model}`;
       }
 
       modelIndicator.textContent = modelText;

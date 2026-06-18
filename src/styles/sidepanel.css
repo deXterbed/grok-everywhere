@@ -183,15 +183,105 @@ html {
   display: none;
 }
 
-/* Image in message */
-.message-content img {
+/* Image in message — full-size images from markdown */
+.message-content img:not(.screenshot-thumb) {
   max-width: 100%;
-  border-radius: 8px !important;
-  margin: 8px 0 !important;
-  border: 1px solid white !important;
-  height: auto !important;
-  width: 400px !important;
-  display: block !important;
+  border-radius: 8px;
+  margin: 8px 0;
+  border: 1px solid var(--border-light);
+  height: auto;
+  display: block;
+}
+
+/* Lightbox overlay for screenshot preview */
+.screenshot-lightbox {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.85);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.screenshot-lightbox-image {
+  max-width: 90%;
+  max-height: 90%;
+  object-fit: contain;
+  border-radius: 8px;
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+  cursor: default;
+}
+
+.screenshot-lightbox-close {
+  position: absolute;
+  top: 16px;
+  right: 20px;
+  color: #fff;
+  font-size: 32px;
+  font-weight: 300;
+  cursor: pointer;
+  line-height: 1;
+  opacity: 0.7;
+  transition: opacity 0.15s;
+}
+
+.screenshot-lightbox-close:hover {
+  opacity: 1;
+}
+
+.screenshot-lightbox-prev,
+.screenshot-lightbox-next {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 40px;
+  cursor: pointer;
+  padding: 16px 12px;
+  opacity: 0.5;
+  transition: opacity 0.15s;
+  line-height: 1;
+}
+
+.screenshot-lightbox-prev:hover,
+.screenshot-lightbox-next:hover {
+  opacity: 1;
+}
+
+.screenshot-lightbox-prev {
+  left: 8px;
+}
+
+.screenshot-lightbox-next {
+  right: 8px;
+}
+
+.screenshot-lightbox .hidden {
+  display: none;
+}
+
+/* Screenshot thumbnail in user messages */
+.message-content .screenshot-thumb {
+  height: 1.2em;
+  width: auto;
+  vertical-align: middle;
+  display: inline-block;
+  border-radius: 4px;
+  border: 1px solid var(--border-light);
+  margin-left: 0.5em;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.message-content .screenshot-thumb:hover {
+  opacity: 0.8;
 }
 
 /* Confirm dialog */
@@ -752,7 +842,7 @@ html {
   border-radius: 8px;
   font-size: 12px;
   font-weight: 500;
-  color: var(--text-secondary);
+  color: var(--text-primary);
   background: transparent;
   border: none;
   cursor: default;
@@ -1156,6 +1246,51 @@ html {
 .theme-btn.active {
   background-color: var(--accent-dim);
   color: var(--accent);
+}
+
+.settings-select {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  background-color: var(--surface-primary);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  padding: 7px 30px 7px 12px;
+  font-size: 13px;
+  line-height: 1.4;
+  font-family: inherit;
+  color: var(--text-primary);
+  outline: none;
+  cursor: pointer;
+  transition: border-color 150ms ease;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.settings-select::-ms-expand {
+  display: none;
+}
+
+.settings-select:focus {
+  border-color: var(--accent-border);
+}
+
+.settings-select option {
+  background-color: var(--surface-primary);
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
+[data-theme="light"] .settings-select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+}
+
+[data-theme="light"] .settings-select option {
+  background-color: #fff;
+  color: #1a1a2e;
 }
 
 /* Hide quick actions when messages exist */

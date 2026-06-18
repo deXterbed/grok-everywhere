@@ -14,8 +14,25 @@ const FETCH_URL_TOOL = {
   },
 };
 
+export function modelSupportsVision(modelId) {
+  // Vision-capable Grok models — checked against xAI docs
+  const visionModels = [
+    "grok-4.3",
+    "grok-build-0.1",
+    "grok-2-vision",
+    "grok-vision-beta",
+  ];
+  return visionModels.includes(modelId);
+}
+
 async function callApi(apiKey, model, messages, tools) {
-  const body = { model, messages, temperature: 0.7, max_tokens: 4096, stream: true };
+  const body = {
+    model,
+    messages,
+    temperature: 0.7,
+    max_tokens: 4096,
+    stream: true,
+  };
   if (tools.length > 0) {
     body.tools = tools;
     body.tool_choice = "auto";
@@ -33,9 +50,11 @@ async function callApi(apiKey, model, messages, tools) {
     let errorMessage;
     try {
       const errorJson = JSON.parse(errorData);
-      errorMessage = errorJson.error?.message || errorJson.message || "API request failed";
+      errorMessage =
+        errorJson.error?.message || errorJson.message || "API request failed";
     } catch {
-      errorMessage = errorData || `API request failed with status ${response.status}`;
+      errorMessage =
+        errorData || `API request failed with status ${response.status}`;
     }
     throw new Error(errorMessage);
   }
@@ -69,10 +88,16 @@ async function readStream(response, streamingMessageId, onStream) {
           }
           if (delta?.tool_calls) {
             for (const tc of delta.tool_calls) {
-              if (!toolCall) toolCall = { id: tc.id || "", name: tc.function?.name || "", args: "" };
+              if (!toolCall)
+                toolCall = {
+                  id: tc.id || "",
+                  name: tc.function?.name || "",
+                  args: "",
+                };
               if (tc.id) toolCall.id = tc.id;
               if (tc.function?.name) toolCall.name = tc.function.name;
-              if (tc.function?.arguments) toolCall.args += tc.function.arguments;
+              if (tc.function?.arguments)
+                toolCall.args += tc.function.arguments;
             }
           }
         } catch {
@@ -91,7 +116,9 @@ async function fetchUrl(url) {
   return new Promise((resolve) => {
     chrome.runtime.sendMessage({ action: "fetchUrl", url }, (response) => {
       if (chrome.runtime.lastError || response?.error) {
-        resolve(`Error fetching URL: ${chrome.runtime.lastError?.message || response?.error}`);
+        resolve(
+          `Error fetching URL: ${chrome.runtime.lastError?.message || response?.error}`,
+        );
       } else {
         resolve(response?.content || "No content found at this URL.");
       }
@@ -109,8 +136,7 @@ export async function fetchStreamingReply({
   conversationHistory,
   onStream,
 }) {
-  const apiModel =
-    model === "Grok Vision" || model === "grok-2-vision" ? "grok-2-vision" : "grok-3-mini";
+  const supportsVision = modelSupportsVision(model);
 
   const messages = [
     {
@@ -122,7 +148,7 @@ export async function fetchStreamingReply({
 
   conversationHistory.forEach((msg) => {
     if (msg.isUser) {
-      if (msg.screenshot && apiModel === "grok-2-vision") {
+      if (msg.screenshot && supportsVision) {
         messages.push({
           role: "user",
           content: [
@@ -138,11 +164,14 @@ export async function fetchStreamingReply({
     }
   });
 
-  if (screenshot && apiModel === "grok-2-vision") {
+  if (screenshot && supportsVision) {
     messages.push({
       role: "user",
       content: [
-        { type: "text", text: "This is a screenshot of my current browser view:" },
+        {
+          type: "text",
+          text: "This is a screenshot of my current browser view:",
+        },
         { type: "image_url", image_url: { url: screenshot } },
       ],
     });
@@ -151,7 +180,7 @@ export async function fetchStreamingReply({
       role: "user",
       content: `Here is the content from my current webpage:\n\n${content}\n\nPlease use this context to help answer my question. If I ask for a summary, summarize the main content from this webpage.`,
     });
-  } else if (screenshot && apiModel === "grok-3-mini") {
+  } else if (screenshot && !supportsVision) {
     messages.push({
       role: "user",
       content:
@@ -161,9 +190,13 @@ export async function fetchStreamingReply({
 
   messages.push({ role: "user", content: message });
 
-  const tools = apiModel === "grok-3-mini" ? [FETCH_URL_TOOL] : [];
-  const response1 = await callApi(apiKey, apiModel, messages, tools);
-  const { content: content1, toolCall } = await readStream(response1, streamingMessageId, onStream);
+  const tools = supportsVision ? [] : [FETCH_URL_TOOL];
+  const response1 = await callApi(apiKey, model, messages, tools);
+  const { content: content1, toolCall } = await readStream(
+    response1,
+    streamingMessageId,
+    onStream,
+  );
 
   if (!toolCall) return content1;
 
@@ -184,9 +217,17 @@ export async function fetchStreamingReply({
       },
     ],
   });
-  messages.push({ role: "tool", tool_call_id: toolCall.id, content: urlContent });
+  messages.push({
+    role: "tool",
+    tool_call_id: toolCall.id,
+    content: urlContent,
+  });
 
-  const response2 = await callApi(apiKey, apiModel, messages, []);
-  const { content: content2 } = await readStream(response2, streamingMessageId, onStream);
+  const response2 = await callApi(apiKey, model, messages, []);
+  const { content: content2 } = await readStream(
+    response2,
+    streamingMessageId,
+    onStream,
+  );
   return content2;
 }

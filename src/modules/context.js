@@ -1,29 +1,42 @@
 import { showContextLoading, hideContextLoading } from "./ui.js";
 import { checkContentScriptAvailability } from "./content.js";
 
-export function createContext({ imageButton, messageInput, getContextMode, setContextMode, clearShortcutState }) {
+export function createContext({
+  imageButton,
+  messageInput,
+  getContextMode,
+  setContextMode,
+  clearShortcutState,
+  getTextModelLabel,
+  getVisionModelLabel,
+}) {
   function updateContextModeUI() {
     const contextMode = getContextMode();
     imageButton.classList.remove("active", "content-mode", "screenshot-mode");
 
-    const currentModelDisplay = document.getElementById("current-model-display");
+    const currentModelDisplay = document.getElementById(
+      "current-model-display",
+    );
     const existingRefreshButton = document.querySelector(".refresh-button");
     if (existingRefreshButton) existingRefreshButton.remove();
 
     switch (contextMode) {
       case "none":
         messageInput.placeholder = "Ask anything";
-        if (currentModelDisplay) currentModelDisplay.textContent = "Grok 3";
+        if (currentModelDisplay)
+          currentModelDisplay.textContent = getTextModelLabel();
         break;
       case "content":
         imageButton.classList.add("active", "content-mode");
         messageInput.placeholder = "Ask about this page...";
-        if (currentModelDisplay) currentModelDisplay.textContent = "Grok 3";
+        if (currentModelDisplay)
+          currentModelDisplay.textContent = getTextModelLabel();
         break;
       case "screenshot":
         imageButton.classList.add("active", "screenshot-mode");
         messageInput.placeholder = "Ask about screenshot...";
-        if (currentModelDisplay) currentModelDisplay.textContent = "Grok Vision";
+        if (currentModelDisplay)
+          currentModelDisplay.textContent = getVisionModelLabel();
         break;
     }
 
@@ -55,14 +68,20 @@ export function createContext({ imageButton, messageInput, getContextMode, setCo
     refreshButton.addEventListener("click", async () => {
       try {
         showContextLoading("Refreshing page...");
-        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        const [tab] = await chrome.tabs.query({
+          active: true,
+          currentWindow: true,
+        });
         if (tab) {
           await chrome.tabs.reload(tab.id);
           setTimeout(async () => {
             const availability = await checkContentScriptAvailability();
             if (availability.available) {
               showContextLoading("Content now available");
-              setTimeout(() => { hideContextLoading(); updateContextModeUI(); }, 1000);
+              setTimeout(() => {
+                hideContextLoading();
+                updateContextModeUI();
+              }, 1000);
             } else {
               showContextLoading("Content still unavailable");
               setTimeout(() => hideContextLoading(), 1000);

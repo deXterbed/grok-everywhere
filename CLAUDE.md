@@ -51,16 +51,18 @@ The sidepanel has 3 context modes, cycled by clicking the context button:
 
 | Mode | Model | Behavior |
 |---|---|---|
-| `none` | Grok 3 (grok-3-mini) | No page context sent |
-| `content` | Grok 3 (grok-3-mini) | Extracts page text content and prepends to messages. Has `fetch_url` tool. |
-| `screenshot` | Grok Vision (grok-2-vision) | Takes a tab screenshot and sends as image |
+| `none` | selected text model | No page context sent |
+| `content` | selected text model | Extracts page text content and prepends to messages. Has `fetch_url` tool. |
+| `screenshot` | selected vision model | Takes a tab screenshot and sends as image |
+
+The actual model is user-selectable in Settings (text model + vision model), not hardcoded per mode. Choices are defined in `TEXT_MODELS`/`VISION_MODELS` in `sidepanel.js` and persisted to `chrome.storage.local` (`textModel`/`visionModel`). `api.js` sends the chosen model ID directly and gates image input via `modelSupportsVision(modelId)`.
 
 ### API
 
 - Endpoint: `https://api.x.ai/v1/chat/completions`
-- Models: `grok-3-mini` (default) or `grok-2-vision` (screenshot mode)
+- Models: user-selected text/vision model IDs (see `TEXT_MODELS`/`VISION_MODELS` in `sidepanel.js`)
 - Streaming: SSE-based streaming, parsed line by line
-- Tool support: `grok-3-mini` has a `fetch_url` function tool for reading arbitrary URLs
+- Tool support: non-vision (text) requests include a `fetch_url` function tool for reading arbitrary URLs; vision requests send no tools
 
 ### Conversation Storage
 
@@ -100,6 +102,8 @@ npm run clean    # Remove dist/
 - Minified in production, sourcemaps in dev
 - Target: Chrome 110+
 - KaTeX is bundled into sidepanel.js via esbuild
+
+**Always run `npm run build` after making changes** — Chrome loads from `dist/`, not `src/`, so source edits don't take effect until rebuilt. This also surfaces syntax/bundling errors.
 
 ### Loading in Chrome
 

@@ -129,6 +129,19 @@
         </div>
       </div>
       <div class="settings-section">
+        <div class="settings-section-title">Models</div>
+        <div class="settings-row">
+          <span>Text model</span>
+          <span class="settings-hint">Used for chat &amp; page content</span>
+        </div>
+        <select id="model-text-select" class="settings-select"></select>
+        <div class="settings-row">
+          <span>Vision model</span>
+          <span class="settings-hint">Used for screenshots</span>
+        </div>
+        <select id="model-vision-select" class="settings-select"></select>
+      </div>
+      <div class="settings-section">
         <div class="settings-section-title">Appearance</div>
         <div class="settings-row">
           <span>Theme</span>
@@ -245,7 +258,7 @@
           </div>
           <div class="toolbar-right">
             <div id="model-badge">
-              <span id="current-model-display">Grok 3</span>
+              <span id="current-model-display">Grok 4.3</span>
               <svg
                 width="11"
                 height="11"
@@ -289,6 +302,22 @@
           </div>
         </div>
       </div>
+    </div>
+
+    <!-- Lightbox overlay for screenshot preview -->
+    <div
+      id="screenshot-lightbox"
+      class="screenshot-lightbox"
+      style="display: none"
+    >
+      <span class="screenshot-lightbox-close">&times;</span>
+      <button class="screenshot-lightbox-prev" aria-label="Previous">
+        &#8249;
+      </button>
+      <img class="screenshot-lightbox-image" src="" alt="Screenshot" />
+      <button class="screenshot-lightbox-next" aria-label="Next">
+        &#8250;
+      </button>
     </div>
 
     <script type="module" src="sidepanel.js"></script>

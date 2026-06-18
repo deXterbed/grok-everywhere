@@ -62,7 +62,6 @@ export function showTypingIndicator(model) {
   }
   if (modelBadge) {
     modelBadge.style.animation = "typingPulse 2s ease-in-out infinite";
-    modelBadge.style.background = "rgba(64, 128, 64, 0.8)";
     modelBadge.style.position = "relative";
     modelBadge.style.zIndex = "1001";
   }
@@ -73,19 +72,19 @@ export function showTypingIndicator(model) {
   if (sendButton) sendButton.disabled = true;
 }
 
-export function hideTypingIndicator(contextMode) {
+export function hideTypingIndicator(modelLabel) {
   const modelBadge = document.getElementById("model-badge");
   const currentModelDisplay = document.getElementById("current-model-display");
   const messageInput = document.getElementById("message-input");
   const sendButton = document.querySelector(".send-button");
 
   if (currentModelDisplay) {
-    currentModelDisplay.textContent =
-      contextMode === "screenshot" ? "Grok Vision" : "Grok 3";
+    currentModelDisplay.textContent = modelLabel || "Grok 4.3";
   }
   if (modelBadge) {
     modelBadge.style.animation = "";
-    modelBadge.style.background = "rgba(64, 64, 64, 0.8)";
+    modelBadge.style.position = "";
+    modelBadge.style.zIndex = "";
   }
   if (messageInput) {
     messageInput.disabled = false;
