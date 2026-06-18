@@ -2,6 +2,18 @@
 export function parseMarkdown(text) {
   if (!text) return "";
 
+  // Extract math blocks before HTML escaping so LaTeX isn't mangled
+  const displayMathBlocks = [];
+  const inlineMathBlocks = [];
+  text = text.replace(/\$\$([\s\S]*?)\$\$/g, (match, math) => {
+    displayMathBlocks.push(math.trim());
+    return `%%DISPLAYMATH_${displayMathBlocks.length - 1}%%`;
+  });
+  text = text.replace(/\$(.+?)\$/g, (match, math) => {
+    inlineMathBlocks.push(math);
+    return `%%INLINEMATH_${inlineMathBlocks.length - 1}%%`;
+  });
+
   // Escape HTML first to prevent XSS
   let html = text
     .replace(/&/g, "&amp;")
@@ -20,7 +32,10 @@ export function parseMarkdown(text) {
   function flushTable() {
     if (!tableRows.length) return;
     const parsed = tableRows.map((r) =>
-      r.split("|").slice(1, -1).map((c) => c.trim()),
+      r
+        .split("|")
+        .slice(1, -1)
+        .map((c) => c.trim()),
     );
     const isSep = (row) => row.every((c) => /^[\-:]+$/.test(c));
     const headers = parsed[0];
@@ -154,5 +169,292 @@ export function parseMarkdown(text) {
     return codeBlocks[parseInt(index)] || match;
   });
 
+  // Render math blocks
+  html = html.replace(/%%DISPLAYMATH_(\d+)%%/g, (match, index) => {
+    const math = displayMathBlocks[parseInt(index)];
+    if (!math) return match;
+    return `<div class="math-display">${renderLatex(math)}</div>`;
+  });
+  html = html.replace(/%%INLINEMATH_(\d+)%%/g, (match, index) => {
+    const math = inlineMathBlocks[parseInt(index)];
+    if (!math) return match;
+    return `<span class="math-inline">${renderLatex(math)}</span>`;
+  });
+
   return html;
+}
+
+function renderLatex(latex) {
+  // Handle fractions: \frac{a}{b}
+  latex = latex.replace(
+    /\\frac\{([^}]*)\}\{([^}]*)\}/g,
+    '<span class="frac"><span class="num">$1</span><span class="den">$2</span></span>',
+  );
+
+  // Handle superscripts: x^{y} and x^y
+  latex = latex.replace(/\^\{([^}]*)\}/g, "<sup>$1</sup>");
+  latex = latex.replace(/\^([a-zA-Z0-9])/g, "<sup>$1</sup>");
+
+  // Handle subscripts: x_{y} and x_y
+  latex = latex.replace(/\_\{([^}]*)\}/g, "<sub>$1</sub>");
+  latex = latex.replace(/\_([a-zA-Z0-9])/g, "<sub>$1</sub>");
+
+  // Handle \left and \right
+  latex = latex.replace(/\\left\s*([\(\[\{\|\\.])/g, "$1");
+  latex = latex.replace(/\\right\s*([\)\]\}\|\\.])/g, "$1");
+
+  // Handle \sqrt[n]{x}
+  latex = latex.replace(
+    /\\sqrt\[([^\]]*)\]\{([^}]*)\}/g,
+    '<span class="sqrt"><sup class="sqrt-root">$1</sup>√<span class="sqrt-content">$2</span></span>',
+  );
+  // Handle \sqrt{x}
+  latex = latex.replace(
+    /\\sqrt\{([^}]*)\}/g,
+    '<span class="sqrt">√<span class="sqrt-content">$1</span></span>',
+  );
+
+  // Handle \binom{n}{k}
+  latex = latex.replace(
+    /\\binom\{([^}]*)\}\{([^}]*)\}/g,
+    '<span class="binom"><span class="binom-top">$1</span><span class="binom-bottom">$2</span></span>',
+  );
+
+  // Handle \text{...}
+  latex = latex.replace(/\\text\{([^}]*)\}/g, "$1");
+
+  // Handle \mathrm, \mathbf, etc.
+  latex = latex.replace(
+    /\\(?:mathrm|mathbf|mathit|mathsf|mathtt|mathcal|mathbb|mathfrak)\{([^}]*)\}/g,
+    "$1",
+  );
+
+  // Handle common functions (sin, cos, etc.)
+  const functions = [
+    "sin",
+    "cos",
+    "tan",
+    "cot",
+    "sec",
+    "csc",
+    "sinh",
+    "cosh",
+    "tanh",
+    "coth",
+    "arcsin",
+    "arccos",
+    "arctan",
+    "log",
+    "ln",
+    "lg",
+    "exp",
+    "det",
+    "dim",
+    "hom",
+    "ker",
+    "max",
+    "min",
+    "sup",
+    "inf",
+    "lim",
+    "limsup",
+    "liminf",
+    "gcd",
+    "lcm",
+  ];
+  for (const fn of functions) {
+    latex = latex.replace(
+      new RegExp(`\\\\${fn}\\b`, "g"),
+      `<span class="math-fn">${fn}</span>`,
+    );
+  }
+
+  // Handle Greek letters and symbols (sorted longest-first to avoid partial matches)
+  const symbols = {
+    "\\aleph": "ℵ",
+    "\\hbar": "ℏ",
+    "\\ell": "ℓ",
+    "\\Re": "ℜ",
+    "\\Im": "ℑ",
+    "\\imath": "ı",
+    "\\jmath": "ȷ",
+    "\\nabla": "∇",
+    "\\partial": "∂",
+    "\\infty": "∞",
+    "\\emptyset": "∅",
+    "\\varnothing": "∅",
+    "\\forall": "∀",
+    "\\exists": "∃",
+    "\\nexists": "∄",
+    "\\neg": "¬",
+    "\\wedge": "∧",
+    "\\vee": "∨",
+    "\\oplus": "⊕",
+    "\\otimes": "⊗",
+    "\\odot": "⊙",
+    "\\circ": "∘",
+    "\\bullet": "•",
+    "\\diamond": "⋄",
+    "\\Box": "□",
+    "\\Diamond": "◇",
+    "\\triangle": "△",
+    "\\angle": "∠",
+    "\\perp": "⟂",
+    "\\parallel": "∥",
+    "\\prime": "′",
+    "\\rightarrow": "→",
+    "\\leftarrow": "←",
+    "\\Rightarrow": "⇒",
+    "\\Leftarrow": "⇐",
+    "\\mapsto": "↦",
+    "\\implies": "⟹",
+    "\\iff": "⟺",
+    "\\to": "→",
+    "\\gets": "←",
+    "\\uparrow": "↑",
+    "\\downarrow": "↓",
+    "\\Uparrow": "⇑",
+    "\\Downarrow": "⇓",
+    "\\nearrow": "↗",
+    "\\searrow": "↘",
+    "\\swarrow": "↙",
+    "\\nwarrow": "↖",
+    "\\approx": "≈",
+    "\\neq": "≠",
+    "\\leq": "≤",
+    "\\ge": "≥",
+    "\\ll": "≪",
+    "\\gg": "≫",
+    "\\prec": "≺",
+    "\\succ": "≻",
+    "\\preceq": "⪯",
+    "\\succeq": "⪰",
+    "\\subset": "⊂",
+    "\\supset": "⊃",
+    "\\subseteq": "⊆",
+    "\\supseteq": "⊇",
+    "\\sqsubset": "⊏",
+    "\\sqsupset": "⊐",
+    "\\sqsubseteq": "⊑",
+    "\\sqsupseteq": "⊒",
+    "\\subsetneq": "⊊",
+    "\\supsetneq": "⊋",
+    "\\nsubseteq": "⊈",
+    "\\nsupseteq": "⊉",
+    "\\in": "∈",
+    "\\notin": "∉",
+    "\\ni": "∋",
+    "\\owns": "∋",
+    "\\cup": "∪",
+    "\\cap": "∩",
+    "\\sim": "∼",
+    "\\cong": "≅",
+    "\\simeq": "≃",
+    "\\equiv": "≡",
+    "\\propto": "∝",
+    "\\models": "⊨",
+    "\\dashv": "⊣",
+    "\\vdash": "⊢",
+    "\\smile": "⌣",
+    "\\frown": "⌢",
+    "\\bowtie": "⋈",
+    "\\Join": "⋈",
+    "\\cdot": "·",
+    "\\times": "×",
+    "\\div": "÷",
+    "\\pm": "±",
+    "\\mp": "∓",
+    "\\sum": "∑",
+    "\\prod": "∏",
+    "\\int": "∫",
+    "\\oint": "∮",
+    "\\dots": "…",
+    "\\cdots": "…",
+    "\\ldots": "…",
+    "\\vdots": "⋮",
+    "\\ddots": "⋱",
+    "\\langle": "⟨",
+    "\\rangle": "⟩",
+    "\\lfloor": "⌊",
+    "\\rfloor": "⌋",
+    "\\lceil": "⌈",
+    "\\rceil": "⌉",
+    "\\alpha": "α",
+    "\\beta": "β",
+    "\\gamma": "γ",
+    "\\delta": "δ",
+    "\\epsilon": "ε",
+    "\\varepsilon": "ε",
+    "\\zeta": "ζ",
+    "\\eta": "η",
+    "\\theta": "θ",
+    "\\vartheta": "ϑ",
+    "\\iota": "ι",
+    "\\kappa": "κ",
+    "\\lambda": "λ",
+    "\\mu": "μ",
+    "\\nu": "ν",
+    "\\xi": "ξ",
+    "\\pi": "π",
+    "\\varpi": "ϖ",
+    "\\rho": "ρ",
+    "\\varrho": "ϱ",
+    "\\sigma": "σ",
+    "\\varsigma": "ς",
+    "\\tau": "τ",
+    "\\upsilon": "υ",
+    "\\phi": "φ",
+    "\\varphi": "φ",
+    "\\chi": "χ",
+    "\\psi": "ψ",
+    "\\omega": "ω",
+    "\\Gamma": "Γ",
+    "\\Delta": "Δ",
+    "\\Theta": "Θ",
+    "\\Lambda": "Λ",
+    "\\Xi": "Ξ",
+    "\\Pi": "Π",
+    "\\Sigma": "Σ",
+    "\\Phi": "Φ",
+    "\\Psi": "Ψ",
+    "\\Omega": "Ω",
+    "\\colon": ":",
+    "\\backslash": "\\",
+    "\\%": "%",
+    "\\_": "_",
+    "\\{": "{",
+    "\\}": "}",
+    "\\#": "#",
+    "\\&": "&",
+    "\\clubsuit": "♣",
+    "\\diamondsuit": "♦",
+    "\\heartsuit": "♥",
+    "\\spadesuit": "♠",
+    "\\flat": "♭",
+    "\\natural": "♮",
+    "\\sharp": "♯",
+    "\\S": "§",
+    "\\P": "¶",
+    "\\dag": "†",
+    "\\ddag": "‡",
+    "\\copyright": "©",
+    "\\pounds": "£",
+    "\\degree": "°",
+  };
+
+  const sortedCmds = Object.keys(symbols).sort((a, b) => b.length - a.length);
+  for (const cmd of sortedCmds) {
+    latex = latex.replace(
+      new RegExp(cmd.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g"),
+      symbols[cmd],
+    );
+  }
+
+  // Handle spaces
+  latex = latex.replace(/\\[,;:\!]/g, " ");
+  latex = latex.replace(/\\quad/g, "  ");
+  latex = latex.replace(/\\qquad/g, "    ");
+  latex = latex.replace(/\\ /g, " ");
+
+  return latex;
 }
