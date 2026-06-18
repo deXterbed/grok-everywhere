@@ -85,4 +85,11 @@ if (existsSync(stylesDir)) {
   cpSync(stylesDir, resolve(distDir, "styles"), { recursive: true });
 }
 
+// ── Copy KaTeX CSS ──────────────────────────────────────────────────
+const katexCssSrc = resolve(root, "node_modules/katex/dist/katex.min.css");
+if (existsSync(katexCssSrc)) {
+  const katexCssDest = resolve(distDir, "styles/katex.min.css");
+  cpSync(katexCssSrc, katexCssDest);
+}
+
 console.log(`\n✅ Built to dist/ (${isProd ? "production" : "development"})`);

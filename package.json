@@ -11,5 +11,8 @@
   },
   "devDependencies": {
     "esbuild": "^0.25.4"
+  },
+  "dependencies": {
+    "katex": "^0.17.0"
   }
 }
