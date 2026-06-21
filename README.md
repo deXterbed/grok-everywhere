@@ -8,7 +8,8 @@ A powerful Chrome extension that brings xAI's Grok AI assistant directly into yo
 
 ## ✨ Features
 
-- **🤖 AI-Powered Conversations**: Chat with Grok 3 and Grok Vision directly in your browser
+- **🤖 AI-Powered Conversations**: Chat with Grok 4.3 and other selectable Grok text/vision models directly in your browser
+- **🔀 Model Selection**: Pick your preferred text and vision model in Settings (Grok 4.3, Grok 4.20 Reasoning, Grok 4.20 fast, Grok 4.20 Multi-Agent, Grok Build 0.1)
 - **📄 Page Content Analysis**: Ask questions about any webpage content
 - **📸 Screenshot Analysis**: Take screenshots and get AI-powered insights
 - **⚡ Quick Actions**: One-click buttons to summarize the page or suggest questions
@@ -25,9 +26,9 @@ A powerful Chrome extension that brings xAI's Grok AI assistant directly into yo
 1. **Install the Extension**: Get it from the [Chrome Web Store](https://chromewebstore.google.com/detail/grok-everywhere/onddcpahoenacjcgkldfegocdgdgajpn)
 2. **Set Your API Key**: Enter your xAI API key to get started
 3. **Choose Context Mode** (click the chrome icon button to cycle):
-   - **No Context** — General conversations with Grok 3
+   - **No Context** — General conversations with your selected text model
    - **Content Mode** — Analyzes webpage text; Grok can also fetch any URL you mention
-   - **Screenshot Mode** — Takes a screenshot for visual analysis using Grok Vision
+   - **Screenshot Mode** — Takes a screenshot for visual analysis using your selected vision model
 4. **Ask Questions**: Get intelligent responses based on the current page
 5. **Streaming Responses**: Watch as Grok generates responses in real-time
 
