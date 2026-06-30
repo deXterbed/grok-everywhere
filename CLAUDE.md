@@ -228,3 +228,11 @@ Version lives in **two** files that must be kept in sync: `package.json` and `sr
 - `type="module"` stripped from HTML during build
 - `host_permissions` requires `<all_urls>` for content script injection and `https://api.x.ai/*` for API calls
 - Content script uses a `window.__grokContentScriptLoaded` guard to prevent duplicate listener registration when injected programmatically
+
+## CSS / Rendering Gotchas
+
+- `src/styles/sidepanel.css` styles `message-content table { display: block; overflow-x: auto; }`. Table cells used `white-space: nowrap`, which causes inline code snippets to get truncated/clipped in the narrow side panel. Use `white-space: normal` + `word-wrap: break-word` for table `th`/`td` so code and text wrap properly.
+
+## Build Gotchas
+
+- `node_modules` may be missing in a fresh checkout. If `npm run build` fails with `Could not resolve "katex"`, run `npm install` first.
