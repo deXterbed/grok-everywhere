@@ -1049,7 +1049,8 @@ html {
   border: 1px solid var(--border-light);
   padding: 6px 10px;
   text-align: left;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .message-content th {

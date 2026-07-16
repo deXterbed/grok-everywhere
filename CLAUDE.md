@@ -79,6 +79,10 @@ The actual model is user-selectable in Settings (text model + vision model), not
 - Max ~100 messages per tab, ~50 tabs stored
 - Cleaned up when tabs are closed
 
+### Markdown Table Rendering
+
+`.message-content th/td` in `sidepanel.css` use `white-space: normal` + `overflow-wrap: anywhere` so long unbroken tokens (e.g. inline code) wrap inside the narrow sidepanel column instead of forcing horizontal scroll.
+
 ### Content Extraction (content.js)
 
 1. Clones `document.body`
