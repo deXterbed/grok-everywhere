@@ -83,6 +83,10 @@ The actual model is user-selectable in Settings (text model + vision model), not
 
 `.message-content th/td` in `sidepanel.css` use `white-space: normal` + `overflow-wrap: anywhere` so long unbroken tokens (e.g. inline code) wrap inside the narrow sidepanel column instead of forcing horizontal scroll.
 
+### User Message Line Breaks
+
+User messages are rendered via `textSpan.textContent = content` in `addMessage()` (`sidepanel.js`), not through the markdown parser, so literal `\n` characters need `white-space: pre-wrap` on `.message-wrapper.user .message-content` (`sidepanel.css`) to display as line breaks — the base `.message-content` rule uses `white-space: normal`, which collapses them.
+
 ### Content Extraction (content.js)
 
 1. Clones `document.body`
