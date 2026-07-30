@@ -128,7 +128,7 @@ async function fetchUrl(url) {
 
 export async function fetchStreamingReply({
   message,
-  screenshot,
+  images,
   content,
   streamingMessageId,
   model,
@@ -148,12 +148,15 @@ export async function fetchStreamingReply({
 
   conversationHistory.forEach((msg) => {
     if (msg.isUser) {
-      if (msg.screenshot && supportsVision) {
+      if (msg.images && msg.images.length && supportsVision) {
         messages.push({
           role: "user",
           content: [
             { type: "text", text: msg.content },
-            { type: "image_url", image_url: { url: msg.screenshot } },
+            ...msg.images.map((img) => ({
+              type: "image_url",
+              image_url: { url: img },
+            })),
           ],
         });
       } else {
@@ -164,15 +167,18 @@ export async function fetchStreamingReply({
     }
   });
 
-  if (screenshot && supportsVision) {
+  if (images && images.length && supportsVision) {
     messages.push({
       role: "user",
       content: [
         {
           type: "text",
-          text: "This is a screenshot of my current browser view:",
+          text: "Here are images I've attached:",
         },
-        { type: "image_url", image_url: { url: screenshot } },
+        ...images.map((img) => ({
+          type: "image_url",
+          image_url: { url: img },
+        })),
       ],
     });
   } else if (content) {
@@ -180,11 +186,11 @@ export async function fetchStreamingReply({
       role: "user",
       content: `Here is the content from my current webpage:\n\n${content}\n\nPlease use this context to help answer my question. If I ask for a summary, summarize the main content from this webpage.`,
     });
-  } else if (screenshot && !supportsVision) {
+  } else if (images && images.length && !supportsVision) {
     messages.push({
       role: "user",
       content:
-        "I have a screenshot of my current browser view, but I'll describe it instead since this model doesn't support images.",
+        "I have attached images, but I'll describe them instead since this model doesn't support images.",
     });
   }
 

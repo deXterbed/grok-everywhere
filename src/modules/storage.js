@@ -31,7 +31,7 @@ export function createStorage({ currentTabId, conversationHistory, MAX_MESSAGES_
   async function saveConversationHistory() {
     if (!currentTabId()) return;
     const sanitized = conversationHistory().map((msg) => {
-      const { screenshot, ...rest } = msg;
+      const { images, ...rest } = msg;
       return rest;
     });
     await chrome.storage.local.set({

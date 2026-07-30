@@ -26,12 +26,16 @@ document.addEventListener("DOMContentLoaded", async () => {
   const imageButton = document.querySelector(".image-button");
   const clearHistoryButton = document.getElementById("clear-history-button");
   const quickActionsEl = document.getElementById("quick-actions");
+  const attachButton = document.getElementById("attach-button");
+  const attachmentInput = document.getElementById("attachment-input");
+  const attachmentPreview = document.getElementById("attachment-preview");
   let apiKey = null;
   let currentScreenshot = null;
   let currentContent = null;
   let contextMode = "content"; // 'none', 'content', 'screenshot'
   let isShortcutMode = false;
   let lastAutoScreenshot = null; // Track auto mode screenshot separately
+  let pendingAttachments = []; // Image attachments (dataURLs) staged for the next message
   // ── Lightbox references ────────────────────────────────────────────
   const lightbox = document.getElementById("screenshot-lightbox");
   const lightboxImg = lightbox.querySelector(".screenshot-lightbox-image");
@@ -70,6 +74,62 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (e.key === "Escape") closeLightbox();
     if (e.key === "ArrowLeft") openLightbox(lightboxIndex - 1);
     if (e.key === "ArrowRight") openLightbox(lightboxIndex + 1);
+  });
+
+  // ── Attachment (upload / clipboard paste) handling ────────────────
+  function renderAttachmentPreview() {
+    attachmentPreview.innerHTML = "";
+    if (pendingAttachments.length === 0) {
+      attachmentPreview.style.display = "none";
+      return;
+    }
+    attachmentPreview.style.display = "flex";
+    pendingAttachments.forEach((dataUrl, index) => {
+      const thumb = document.createElement("div");
+      thumb.className = "attachment-thumb";
+
+      const img = document.createElement("img");
+      img.src = dataUrl;
+      thumb.appendChild(img);
+
+      const removeBtn = document.createElement("button");
+      removeBtn.className = "attachment-remove";
+      removeBtn.textContent = "×";
+      removeBtn.addEventListener("click", () => {
+        pendingAttachments.splice(index, 1);
+        renderAttachmentPreview();
+      });
+      thumb.appendChild(removeBtn);
+
+      attachmentPreview.appendChild(thumb);
+    });
+  }
+
+  function addAttachmentFile(file) {
+    if (!file || !file.type.startsWith("image/")) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      pendingAttachments.push(reader.result);
+      renderAttachmentPreview();
+    };
+    reader.readAsDataURL(file);
+  }
+
+  attachButton.addEventListener("click", () => {
+    attachmentInput.click();
+  });
+
+  attachmentInput.addEventListener("change", () => {
+    Array.from(attachmentInput.files || []).forEach(addAttachmentFile);
+    attachmentInput.value = "";
+  });
+
+  messageInput.addEventListener("paste", (e) => {
+    const items = Array.from(e.clipboardData?.items || []);
+    const imageItems = items.filter((item) => item.type.startsWith("image/"));
+    if (imageItems.length === 0) return;
+    e.preventDefault();
+    imageItems.forEach((item) => addAttachmentFile(item.getAsFile()));
   });
 
   let isUserAtBottom = true; // Track if user is at bottom of chat
@@ -437,7 +497,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         );
         // Restore the conversation UI
         conversationHistory.forEach((msg) => {
-          addMessage(msg.content, msg.isUser, msg.screenshot, msg.model);
+          addMessage(msg.content, msg.isUser, msg.images, msg.model);
         });
       }
       updateClearHistoryVisibility();
@@ -552,13 +612,20 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // Function to handle message sending
   async function handleMessageSend() {
-    if (!messageInput.value.trim() || !apiKey) {
+    if (
+      (!messageInput.value.trim() && pendingAttachments.length === 0) ||
+      !apiKey
+    ) {
       return;
     }
 
     const message = messageInput.value.trim();
     messageInput.value = "";
     autoResizeTextarea();
+
+    const attachmentsToSend = pendingAttachments;
+    pendingAttachments = [];
+    renderAttachmentPreview();
 
     let screenshotToSend = null;
     let contentToSend = null;
@@ -633,16 +700,21 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
 
       // Hide loading and show typing indicator
+      const images = screenshotToSend
+        ? [screenshotToSend, ...attachmentsToSend]
+        : attachmentsToSend;
       hideLoading();
 
       // Determine which model will be used for typing indicator
-      const model = screenshotToSend
-        ? getVisionModelLabel()
-        : getTextModelLabel();
+      const model =
+        images.length > 0 ? getVisionModelLabel() : getTextModelLabel();
       showTypingIndicator(model);
 
-      await sendMessage(message, screenshotToSend, contentToSend);
+      await sendMessage(message, images, contentToSend);
     } catch (error) {
+      // If sending fails, restore the attachments so the user doesn't lose them
+      pendingAttachments = attachmentsToSend;
+      renderAttachmentPreview();
       // If sending fails and we were in shortcut mode, restore the context
       if (wasShortcutMode) {
         if (screenshotToSend) {
@@ -818,23 +890,23 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   });
 
-  async function sendMessage(message, screenshot, content) {
+  async function sendMessage(message, images, content) {
     // Determine which model ID to use based on context mode
     let model;
-    if (screenshot) {
+    if (images && images.length > 0) {
       model = visionModel;
     } else {
       model = textModel;
     }
 
     // Add message to UI first
-    addMessage(message, true, screenshot, model);
+    addMessage(message, true, images, model);
 
     // Add to conversation history
     conversationHistory.push({
       content: message,
       isUser: true,
-      screenshot: screenshot,
+      images: images,
       model: model,
     });
 
@@ -856,7 +928,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       // Get streaming reply
       const reply = await fetchStreamingReply({
         message,
-        screenshot,
+        images,
         content,
         streamingMessageId,
         model,
@@ -866,9 +938,10 @@ document.addEventListener("DOMContentLoaded", async () => {
       });
 
       // Determine label for the badge
-      const modelLabel = screenshot
-        ? getVisionModelLabel()
-        : getTextModelLabel();
+      const modelLabel =
+        images && images.length > 0
+          ? getVisionModelLabel()
+          : getTextModelLabel();
 
       // Hide typing indicator
       hideTypingIndicator(modelLabel);
@@ -894,9 +967,10 @@ document.addEventListener("DOMContentLoaded", async () => {
       updateStreamingMessage(streamingMessageId, reply, model);
     } catch (error) {
       // Determine label for the badge
-      const modelLabel = screenshot
-        ? getVisionModelLabel()
-        : getTextModelLabel();
+      const modelLabel =
+        images && images.length > 0
+          ? getVisionModelLabel()
+          : getTextModelLabel();
 
       // Hide typing indicator on error
       hideTypingIndicator(modelLabel);
@@ -1009,7 +1083,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }, 10);
   }
 
-  function addMessage(content, isUser, screenshot = null, model = null) {
+  function addMessage(content, isUser, images = null, model = null) {
     const wrapperDiv = document.createElement("div");
     wrapperDiv.className = `message-wrapper${isUser ? " user" : ""}`;
 
@@ -1029,21 +1103,23 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
     contentDiv.appendChild(textSpan);
 
-    // Add small inline image if screenshot exists
-    if (screenshot) {
-      const img = document.createElement("img");
-      img.src = screenshot;
-      img.className = "screenshot-thumb";
+    // Add small inline thumbnails for any attached images
+    if (images && images.length > 0) {
+      images.forEach((imageUrl) => {
+        const img = document.createElement("img");
+        img.src = imageUrl;
+        img.className = "screenshot-thumb";
 
-      // Register this screenshot for lightbox navigation
-      const screenshotIndex = lightboxImages.length;
-      lightboxImages.push(screenshot);
-      img.addEventListener("click", (e) => {
-        e.stopPropagation();
-        openLightbox(screenshotIndex);
+        // Register this image for lightbox navigation
+        const imageIndex = lightboxImages.length;
+        lightboxImages.push(imageUrl);
+        img.addEventListener("click", (e) => {
+          e.stopPropagation();
+          openLightbox(imageIndex);
+        });
+
+        contentDiv.appendChild(img);
       });
-
-      contentDiv.appendChild(img);
     }
 
     // Add model indicator for assistant messages

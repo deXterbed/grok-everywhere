@@ -65,6 +65,12 @@ The sidepanel has 3 context modes, cycled by clicking the context button:
 
 The actual model is user-selectable in Settings (text model + vision model), not hardcoded per mode. Choices are defined in `TEXT_MODELS`/`VISION_MODELS` in `sidepanel.js` and persisted to `chrome.storage.local` (`textModel`/`visionModel`). `api.js` sends the chosen model ID directly and gates image input via `modelSupportsVision(modelId)`.
 
+### Image Attachments
+
+Independent of context mode, users can attach images to a message via the paperclip button (`#attach-button` → `#attachment-input`, a hidden multi-file `<input type="file">`) or by pasting an image from the clipboard while focused in `#message-input` (`paste` listener reads `clipboardData.items`). Staged attachments live in `pendingAttachments` (array of dataURLs) and render as removable thumbnails in `#attachment-preview` above the textarea until sent.
+
+On send, `handleMessageSend` merges any context-mode screenshot with `pendingAttachments` into a single `images` array (screenshot first). Any non-empty `images` array forces the vision model, same as screenshot mode. Messages carry `images` (plural, array) end-to-end — `sidepanel.js` → `api.js` (`fetchStreamingReply`'s `images` param, one `image_url` content part per image) → conversation history entries (`msg.images`) — replacing the older single `screenshot` field, which is now used only internally for the auto-captured context-mode screenshot before it's folded into `images`.
+
 ### API
 
 - Endpoint: `https://api.x.ai/v1/chat/completions`
@@ -75,7 +81,7 @@ The actual model is user-selectable in Settings (text model + vision model), not
 ### Conversation Storage
 
 - Keyed by tab ID: `conversationHistory_{tabId}`
-- Screenshots are stripped before saving (to save storage)
+- Images (`msg.images`, from screenshots and/or attachments) are stripped before saving (to save storage) — reload after a tab switch shows text-only history, no thumbnails
 - Max ~100 messages per tab, ~50 tabs stored
 - Cleaned up when tabs are closed
 
