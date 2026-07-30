@@ -14,6 +14,11 @@ const FETCH_URL_TOOL = {
   },
 };
 
+function extractFirstUrl(text) {
+  const match = text.match(/https?:\/\/\S+/i);
+  return match ? match[0].replace(/[),.]+$/, "") : null;
+}
+
 export function modelSupportsVision(modelId) {
   // Vision-capable Grok models — checked against xAI docs
   const visionModels = [
@@ -25,7 +30,7 @@ export function modelSupportsVision(modelId) {
   return visionModels.includes(modelId);
 }
 
-async function callApi(apiKey, model, messages, tools) {
+async function callApi(apiKey, model, messages, tools, toolChoice = "auto") {
   const body = {
     model,
     messages,
@@ -35,7 +40,7 @@ async function callApi(apiKey, model, messages, tools) {
   };
   if (tools.length > 0) {
     body.tools = tools;
-    body.tool_choice = "auto";
+    body.tool_choice = toolChoice;
   }
   const response = await fetch("https://api.x.ai/v1/chat/completions", {
     method: "POST",
@@ -142,7 +147,7 @@ export async function fetchStreamingReply({
     {
       role: "system",
       content:
-        "You are Grok, a helpful AI assistant created by xAI. You will be provided context from the user's current webpage to help answer their questions more effectively. Focus on the main content, articles, text, and meaningful information from the webpage. Provide clear, concise responses that directly address the user's question based on the webpage content. When the user mentions a specific URL and wants you to read or check it, use the fetch_url tool.",
+        "You are Grok, a helpful AI assistant created by xAI. You will be provided context from the user's current webpage to help answer their questions more effectively. Focus on the main content, articles, text, and meaningful information from the webpage. Provide clear, concise responses that directly address the user's question based on the webpage content. You have a fetch_url tool that reads the live content of any webpage — you are not limited to prior knowledge or a training cutoff for this. Whenever the user's message contains or references a specific URL, always call fetch_url to read it before answering; never claim you can't browse or access the internet.",
     },
   ];
 
@@ -194,9 +199,31 @@ export async function fetchStreamingReply({
     });
   }
 
+  // Whether THIS turn is actually sending an image — not whether the
+  // selected model merely supports vision. grok-4.3 is vision-capable and
+  // is the default for both textModel and visionModel, so gating on
+  // supportsVision alone would strip fetch_url from every plain-text
+  // conversation on the default model, even with zero images attached.
+  const hasImagesThisTurn = Boolean(images && images.length);
+
+  // Models sometimes decline with a canned "I can't browse the web" reply
+  // instead of calling the fetch_url tool when it's left to their discretion
+  // (even with tool_choice forced to it) — so when the user's message itself
+  // contains a URL, fetch it deterministically and inject the content,
+  // rather than hoping the model calls the tool.
+  const urlInMessage = !hasImagesThisTurn ? extractFirstUrl(message) : null;
+  if (urlInMessage) {
+    onStream(streamingMessageId, `Fetching ${urlInMessage}...`);
+    const urlContent = await fetchUrl(urlInMessage);
+    messages.push({
+      role: "user",
+      content: `Here is the content fetched from ${urlInMessage}:\n\n${urlContent}\n\nUse this to answer my question below.`,
+    });
+  }
+
   messages.push({ role: "user", content: message });
 
-  const tools = supportsVision ? [] : [FETCH_URL_TOOL];
+  const tools = hasImagesThisTurn ? [] : [FETCH_URL_TOOL];
   const response1 = await callApi(apiKey, model, messages, tools);
   const { content: content1, toolCall } = await readStream(
     response1,

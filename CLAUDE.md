@@ -81,9 +81,13 @@ Both attachment kinds flow end-to-end alongside `images`: `sidepanel.js` → `ap
 
 ### API
 
-- Chat endpoint (default, no files involved): `https://api.x.ai/v1/chat/completions` — SSE streaming, parsed line by line. Models: user-selected text/vision model IDs (see `TEXT_MODELS`/`VISION_MODELS` in `sidepanel.js`). Non-vision (text) requests include a `fetch_url` function tool for reading arbitrary URLs; vision requests send no tools.
+- Chat endpoint (default, no files involved): `https://api.x.ai/v1/chat/completions` — SSE streaming, parsed line by line. Models: user-selected text/vision model IDs (see `TEXT_MODELS`/`VISION_MODELS` in `sidepanel.js`).
 - Files endpoint (any turn with a file attachment, current or historical): `https://api.x.ai/v1/responses` via `modules/responses.js` — see Attachments above. Always uses `FILE_MODEL` ("grok-4.5"), regardless of the user's selected text/vision model.
 - File upload endpoint: `https://api.x.ai/v1/files` via `modules/files.js`.
+
+**`fetch_url` tool gating — don't reuse `supportsVision` for this.** `grok-4.3` is xAI's flagship model and is the *default* for both `textModel` and `visionModel` (`TEXT_MODELS`/`VISION_MODELS` in `sidepanel.js`), so `modelSupportsVision(model)` returns `true` even in a plain-text conversation with zero images attached. `fetchStreamingReply` (`api.js`) previously gated the `fetch_url` tool on `supportsVision`, which silently stripped the tool from every request on the default model — the model would then respond with a canned "I can't browse the web" instead of fetching anything, with no error surfaced anywhere. Tool/URL-fetch availability must be gated on `hasImagesThisTurn` (whether `images` is actually non-empty *this turn*), not on whether the selected model is merely vision-*capable*. `supportsVision` stays correct for the image-content-type decisions (whether to render `image_url` parts) — the bug was specifically conflating "model can do vision" with "this request is a vision request."
+
+Separately: forcing `tool_choice` to a named function (`{ type: "function", function: { name: "fetch_url" } }`) to make the model call fetch_url was tried and **did not reliably work** — the model streamed acknowledgment text ("I'll read that... one moment") without ever emitting a `tool_calls` delta, silently doing nothing. Don't rely on forced `tool_choice` for this; instead `fetchStreamingReply` now deterministically extracts a URL from the user's message client-side (`extractFirstUrl()`) and fetches it via `fetchUrl()` *before* calling the model at all, injecting the content as context. The `fetch_url` tool is still offered (`tool_choice: "auto"`) as a fallback for URLs the model encounters indirectly (e.g. referenced from earlier turns), but the primary "read this URL" case no longer depends on the model choosing to call anything.
 
 ### Conversation Storage
 
