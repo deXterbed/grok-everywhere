@@ -100,6 +100,10 @@ Both attachment kinds flow end-to-end alongside `images`: `sidepanel.js` → `ap
 
 User messages are rendered via `textSpan.textContent = content` in `addMessage()` (`sidepanel.js`), not through the markdown parser, so literal `\n` characters need `white-space: pre-wrap` on `.message-wrapper.user .message-content` (`sidepanel.css`) to display as line breaks — the base `.message-content` rule uses `white-space: normal`, which collapses them.
 
+### Copy Button (assistant messages)
+
+`appendAssistantFooter()` in `sidepanel.js` renders the "Using \<model\>" label and a copy button together under every assistant reply (shared by `addMessage()` and `updateStreamingMessage()` — previously two near-duplicated inline-styled blocks). `createCopyButton()` copies the raw reply string (not rendered HTML/markdown) via `navigator.clipboard.writeText()`. **Always attach a `.catch()` here** — a rejected clipboard write (e.g. focus/permission issues in the side panel context) fails silently with no visible error otherwise, since there's nothing else in the click handler to surface it. On success the button icon swaps to a checkmark for ~1.2s (`.message-copy-button.copied`) — a color/opacity change alone was tried first and was too subtle to register as feedback.
+
 ### Content Extraction (content.js)
 
 1. Clones `document.body`

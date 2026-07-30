@@ -1121,6 +1121,58 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   }
 
+  const COPY_ICON =
+    '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="9" y="9" width="13" height="13" rx="2" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>';
+  const COPIED_ICON =
+    '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+  function createCopyButton(text) {
+    const button = document.createElement("button");
+    button.className = "message-copy-button";
+    button.title = "Copy";
+    button.innerHTML = COPY_ICON;
+    button.addEventListener("click", (e) => {
+      e.stopPropagation();
+      navigator.clipboard
+        .writeText(text)
+        .then(() => {
+          button.classList.add("copied");
+          button.title = "Copied!";
+          button.innerHTML = COPIED_ICON;
+          setTimeout(() => {
+            button.classList.remove("copied");
+            button.title = "Copy";
+            button.innerHTML = COPY_ICON;
+          }, 1200);
+        })
+        .catch((error) => {
+          console.error("Failed to copy message:", error);
+        });
+    });
+    return button;
+  }
+
+  // Appends the "Using <model>" indicator + copy button under an assistant message
+  function appendAssistantFooter(contentDiv, content, model) {
+    const footer = document.createElement("div");
+    footer.className = "message-footer";
+
+    if (model) {
+      const modelIndicator = document.createElement("span");
+      modelIndicator.className = "model-indicator";
+      const textDef = TEXT_MODELS.find((m) => m.id === model);
+      const visionDef = VISION_MODELS.find((m) => m.id === model);
+      const def = textDef || visionDef;
+      modelIndicator.textContent = def
+        ? `Using ${def.label}`
+        : `Using ${model}`;
+      footer.appendChild(modelIndicator);
+    }
+
+    footer.appendChild(createCopyButton(content));
+    contentDiv.appendChild(footer);
+  }
+
   function addStreamingMessage(messageId) {
     const wrapperDiv = document.createElement("div");
     wrapperDiv.className = "message-wrapper";
@@ -1183,27 +1235,9 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
     }
 
-    // Add model indicator for assistant messages
+    // Add model indicator + copy button for assistant messages
     if (model) {
-      const modelIndicator = document.createElement("div");
-      modelIndicator.style.fontSize = "0.7em";
-      modelIndicator.style.color = "#666";
-      modelIndicator.style.marginTop = "4px";
-      modelIndicator.style.fontStyle = "italic";
-
-      let modelText = "";
-      // Look up the label from either model list
-      const textDef = TEXT_MODELS.find((m) => m.id === model);
-      const visionDef = VISION_MODELS.find((m) => m.id === model);
-      const def = textDef || visionDef;
-      if (def) {
-        modelText = `Using ${def.label}`;
-      } else {
-        modelText = `Using ${model}`;
-      }
-
-      modelIndicator.textContent = modelText;
-      contentDiv.appendChild(modelIndicator);
+      appendAssistantFooter(contentDiv, content, model);
     }
 
     // Remove the streaming ID
@@ -1282,27 +1316,9 @@ document.addEventListener("DOMContentLoaded", async () => {
       });
     }
 
-    // Add model indicator for assistant messages
+    // Add model indicator + copy button for assistant messages
     if (!isUser && model) {
-      const modelIndicator = document.createElement("div");
-      modelIndicator.style.fontSize = "0.7em";
-      modelIndicator.style.color = "#666";
-      modelIndicator.style.marginTop = "4px";
-      modelIndicator.style.fontStyle = "italic";
-
-      let modelText = "";
-      // Look up the label from either model list
-      const textDef = TEXT_MODELS.find((m) => m.id === model);
-      const visionDef = VISION_MODELS.find((m) => m.id === model);
-      const def = textDef || visionDef;
-      if (def) {
-        modelText = `Using ${def.label}`;
-      } else {
-        modelText = `Using ${model}`;
-      }
-
-      modelIndicator.textContent = modelText;
-      contentDiv.appendChild(modelIndicator);
+      appendAssistantFooter(contentDiv, content, model);
     }
 
     messageDiv.appendChild(contentDiv);

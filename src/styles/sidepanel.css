@@ -616,6 +616,45 @@ html {
   white-space: nowrap;
 }
 
+.message-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 4px;
+}
+
+.model-indicator {
+  font-size: 0.7em;
+  color: #666;
+  font-style: italic;
+}
+
+.message-copy-button {
+  background: transparent;
+  border: none;
+  padding: 2px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 5px;
+  color: var(--text-secondary);
+  opacity: 0.6;
+  transition:
+    opacity 0.15s ease,
+    color 0.15s ease;
+}
+
+.message-copy-button:hover {
+  opacity: 1;
+  background-color: rgba(255, 255, 255, 0.07);
+}
+
+.message-copy-button.copied {
+  opacity: 1;
+  color: var(--accent);
+}
+
 .send-button {
   width: 30px;
   height: 30px;
