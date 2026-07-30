@@ -6,6 +6,8 @@ import {
 } from "./modules/content.js";
 import { createStorage } from "./modules/storage.js";
 import { fetchStreamingReply } from "./modules/api.js";
+import { uploadFile, MAX_FILE_SIZE } from "./modules/files.js";
+import { fetchFileResponse, FILE_MODEL } from "./modules/responses.js";
 import {
   showLoading,
   hideLoading,
@@ -36,6 +38,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   let isShortcutMode = false;
   let lastAutoScreenshot = null; // Track auto mode screenshot separately
   let pendingAttachments = []; // Image attachments (dataURLs) staged for the next message
+  let pendingFiles = []; // Non-image file attachments staged for the next message
+  let fileAttachmentCounter = 0;
   // ── Lightbox references ────────────────────────────────────────────
   const lightbox = document.getElementById("screenshot-lightbox");
   const lightboxImg = lightbox.querySelector(".screenshot-lightbox-image");
@@ -79,7 +83,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   // ── Attachment (upload / clipboard paste) handling ────────────────
   function renderAttachmentPreview() {
     attachmentPreview.innerHTML = "";
-    if (pendingAttachments.length === 0) {
+    if (pendingAttachments.length === 0 && pendingFiles.length === 0) {
       attachmentPreview.style.display = "none";
       return;
     }
@@ -103,6 +107,33 @@ document.addEventListener("DOMContentLoaded", async () => {
 
       attachmentPreview.appendChild(thumb);
     });
+
+    pendingFiles.forEach((entry) => {
+      const chip = document.createElement("div");
+      chip.className = `attachment-file ${entry.status}`;
+      chip.title = entry.error || entry.name;
+
+      const nameSpan = document.createElement("span");
+      nameSpan.className = "attachment-file-name";
+      nameSpan.textContent =
+        entry.status === "uploading"
+          ? `Uploading ${entry.name}…`
+          : entry.status === "error"
+            ? `${entry.name} (failed)`
+            : entry.name;
+      chip.appendChild(nameSpan);
+
+      const removeBtn = document.createElement("button");
+      removeBtn.className = "attachment-remove-inline";
+      removeBtn.textContent = "×";
+      removeBtn.addEventListener("click", () => {
+        pendingFiles = pendingFiles.filter((f) => f.localId !== entry.localId);
+        renderAttachmentPreview();
+      });
+      chip.appendChild(removeBtn);
+
+      attachmentPreview.appendChild(chip);
+    });
   }
 
   function addAttachmentFile(file) {
@@ -115,21 +146,73 @@ document.addEventListener("DOMContentLoaded", async () => {
     reader.readAsDataURL(file);
   }
 
+  function addFileAttachment(file) {
+    if (!file) return;
+    const entry = {
+      localId: ++fileAttachmentCounter,
+      name: file.name,
+      status: "uploading",
+      fileId: null,
+      error: null,
+      uploadPromise: null,
+    };
+
+    if (!apiKey) {
+      entry.status = "error";
+      entry.error = "API key required";
+      pendingFiles.push(entry);
+      renderAttachmentPreview();
+      return;
+    }
+
+    if (file.size > MAX_FILE_SIZE) {
+      entry.status = "error";
+      entry.error = "File exceeds 48MB limit";
+      pendingFiles.push(entry);
+      renderAttachmentPreview();
+      return;
+    }
+
+    pendingFiles.push(entry);
+    renderAttachmentPreview();
+
+    entry.uploadPromise = uploadFile(apiKey, file)
+      .then((result) => {
+        entry.status = "uploaded";
+        entry.fileId = result.id;
+        renderAttachmentPreview();
+      })
+      .catch((error) => {
+        entry.status = "error";
+        entry.error = error.message || "Upload failed";
+        renderAttachmentPreview();
+      });
+  }
+
+  function addAttachedFileOrImage(file) {
+    if (!file) return;
+    if (file.type.startsWith("image/")) {
+      addAttachmentFile(file);
+    } else {
+      addFileAttachment(file);
+    }
+  }
+
   attachButton.addEventListener("click", () => {
     attachmentInput.click();
   });
 
   attachmentInput.addEventListener("change", () => {
-    Array.from(attachmentInput.files || []).forEach(addAttachmentFile);
+    Array.from(attachmentInput.files || []).forEach(addAttachedFileOrImage);
     attachmentInput.value = "";
   });
 
   messageInput.addEventListener("paste", (e) => {
     const items = Array.from(e.clipboardData?.items || []);
-    const imageItems = items.filter((item) => item.type.startsWith("image/"));
-    if (imageItems.length === 0) return;
+    const fileItems = items.filter((item) => item.kind === "file");
+    if (fileItems.length === 0) return;
     e.preventDefault();
-    imageItems.forEach((item) => addAttachmentFile(item.getAsFile()));
+    fileItems.forEach((item) => addAttachedFileOrImage(item.getAsFile()));
   });
 
   let isUserAtBottom = true; // Track if user is at bottom of chat
@@ -162,6 +245,11 @@ document.addEventListener("DOMContentLoaded", async () => {
       id: "grok-build-0.1",
       label: "Grok Build 0.1",
       description: "Fast coding specialist (vision-capable)",
+    },
+    {
+      id: "grok-4.5",
+      label: "Grok 4.5",
+      description: "Agentic — required for file attachments",
     },
   ];
 
@@ -204,6 +292,11 @@ document.addEventListener("DOMContentLoaded", async () => {
   function getVisionModelLabel() {
     const m = VISION_MODELS.find((m) => m.id === visionModel);
     return m ? m.label : visionModel;
+  }
+
+  function getFileModelLabel() {
+    const m = TEXT_MODELS.find((m) => m.id === FILE_MODEL);
+    return m ? m.label : FILE_MODEL;
   }
 
   // Function to check if user is at the bottom of the chat
@@ -497,7 +590,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         );
         // Restore the conversation UI
         conversationHistory.forEach((msg) => {
-          addMessage(msg.content, msg.isUser, msg.images, msg.model);
+          addMessage(msg.content, msg.isUser, msg.images, msg.model, msg.files);
         });
       }
       updateClearHistoryVisibility();
@@ -613,7 +706,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   // Function to handle message sending
   async function handleMessageSend() {
     if (
-      (!messageInput.value.trim() && pendingAttachments.length === 0) ||
+      (!messageInput.value.trim() &&
+        pendingAttachments.length === 0 &&
+        pendingFiles.length === 0) ||
       !apiKey
     ) {
       return;
@@ -625,15 +720,40 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     const attachmentsToSend = pendingAttachments;
     pendingAttachments = [];
+    const pendingFileEntries = pendingFiles;
+    pendingFiles = [];
     renderAttachmentPreview();
 
     let screenshotToSend = null;
     let contentToSend = null;
     let wasShortcutMode = isShortcutMode;
+    let usesFiles = false;
 
     try {
       // Show initial loading state
       showLoading("Preparing message...");
+
+      // Wait for any in-flight file uploads, then drop failed ones (restoring
+      // them to the input so the user can see the error and retry/remove)
+      if (pendingFileEntries.length > 0) {
+        showContextLoading("Uploading files...");
+        await Promise.all(
+          pendingFileEntries.map((f) => f.uploadPromise).filter(Boolean),
+        );
+      }
+      const filesToSend = pendingFileEntries
+        .filter((f) => f.status === "uploaded")
+        .map((f) => ({ name: f.name, fileId: f.fileId }));
+      const failedFiles = pendingFileEntries.filter(
+        (f) => f.status === "error",
+      );
+      if (failedFiles.length > 0) {
+        pendingFiles = pendingFiles.concat(failedFiles);
+        renderAttachmentPreview();
+      }
+      usesFiles =
+        filesToSend.length > 0 ||
+        conversationHistory.some((m) => m.files && m.files.length > 0);
 
       if (contextMode === "screenshot") {
         if (isShortcutMode && currentScreenshot) {
@@ -706,14 +826,23 @@ document.addEventListener("DOMContentLoaded", async () => {
       hideLoading();
 
       // Determine which model will be used for typing indicator
-      const model =
-        images.length > 0 ? getVisionModelLabel() : getTextModelLabel();
+      const model = usesFiles
+        ? getFileModelLabel()
+        : images.length > 0
+          ? getVisionModelLabel()
+          : getTextModelLabel();
       showTypingIndicator(model);
 
-      await sendMessage(message, images, contentToSend);
+      await sendMessage(message, images, contentToSend, filesToSend);
     } catch (error) {
       // If sending fails, restore the attachments so the user doesn't lose them
       pendingAttachments = attachmentsToSend;
+      const uploadedFileEntries = pendingFileEntries.filter(
+        (f) => f.status === "uploaded",
+      );
+      if (uploadedFileEntries.length > 0) {
+        pendingFiles = pendingFiles.concat(uploadedFileEntries);
+      }
       renderAttachmentPreview();
       // If sending fails and we were in shortcut mode, restore the context
       if (wasShortcutMode) {
@@ -727,9 +856,11 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
       hideLoading();
       hideTypingIndicator(
-        contextMode === "screenshot"
-          ? getVisionModelLabel()
-          : getTextModelLabel(),
+        usesFiles
+          ? getFileModelLabel()
+          : contextMode === "screenshot"
+            ? getVisionModelLabel()
+            : getTextModelLabel(),
       );
       throw error;
     }
@@ -890,23 +1021,33 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   });
 
-  async function sendMessage(message, images, content) {
+  async function sendMessage(message, images, content, files) {
+    // Files (any file attached this turn, or in earlier turns of this
+    // conversation) require xAI's Responses API — it's the only endpoint
+    // that supports input_file / attachment_search. See CLAUDE.md.
+    const usesFiles =
+      (files && files.length > 0) ||
+      conversationHistory.some((m) => m.files && m.files.length > 0);
+
     // Determine which model ID to use based on context mode
     let model;
-    if (images && images.length > 0) {
+    if (usesFiles) {
+      model = FILE_MODEL;
+    } else if (images && images.length > 0) {
       model = visionModel;
     } else {
       model = textModel;
     }
 
     // Add message to UI first
-    addMessage(message, true, images, model);
+    addMessage(message, true, images, model, files);
 
     // Add to conversation history
     conversationHistory.push({
       content: message,
       isUser: true,
       images: images,
+      files: files,
       model: model,
     });
 
@@ -920,31 +1061,39 @@ document.addEventListener("DOMContentLoaded", async () => {
       cleanupOldConversations();
     }
 
+    const modelLabel = () =>
+      usesFiles
+        ? getFileModelLabel()
+        : images && images.length > 0
+          ? getVisionModelLabel()
+          : getTextModelLabel();
+
     try {
       // Create a placeholder message for the streaming response
       const streamingMessageId = Date.now().toString();
       const streamingMessageElement = addStreamingMessage(streamingMessageId);
 
       // Get streaming reply
-      const reply = await fetchStreamingReply({
-        message,
-        images,
-        content,
-        streamingMessageId,
-        model,
-        apiKey,
-        conversationHistory,
-        onStream: updateStreamingContent,
-      });
-
-      // Determine label for the badge
-      const modelLabel =
-        images && images.length > 0
-          ? getVisionModelLabel()
-          : getTextModelLabel();
+      const reply = usesFiles
+        ? await fetchFileResponse({
+            streamingMessageId,
+            apiKey,
+            conversationHistory,
+            onStream: updateStreamingContent,
+          })
+        : await fetchStreamingReply({
+            message,
+            images,
+            content,
+            streamingMessageId,
+            model,
+            apiKey,
+            conversationHistory,
+            onStream: updateStreamingContent,
+          });
 
       // Hide typing indicator
-      hideTypingIndicator(modelLabel);
+      hideTypingIndicator(modelLabel());
 
       // Add reply to conversation history
       conversationHistory.push({
@@ -966,14 +1115,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       // Update the streaming message with final content
       updateStreamingMessage(streamingMessageId, reply, model);
     } catch (error) {
-      // Determine label for the badge
-      const modelLabel =
-        images && images.length > 0
-          ? getVisionModelLabel()
-          : getTextModelLabel();
-
       // Hide typing indicator on error
-      hideTypingIndicator(modelLabel);
+      hideTypingIndicator(modelLabel());
       throw error;
     }
   }
@@ -1083,7 +1226,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     }, 10);
   }
 
-  function addMessage(content, isUser, images = null, model = null) {
+  function addMessage(
+    content,
+    isUser,
+    images = null,
+    model = null,
+    files = null,
+  ) {
     const wrapperDiv = document.createElement("div");
     wrapperDiv.className = `message-wrapper${isUser ? " user" : ""}`;
 
@@ -1119,6 +1268,17 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
 
         contentDiv.appendChild(img);
+      });
+    }
+
+    // Add small chips for any attached (non-image) files
+    if (files && files.length > 0) {
+      files.forEach((file) => {
+        const chip = document.createElement("span");
+        chip.className = "file-chip";
+        chip.textContent = file.name;
+        chip.title = file.name;
+        contentDiv.appendChild(chip);
       });
     }
 
