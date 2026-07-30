@@ -153,7 +153,7 @@ Import npm packages normally in JS files; esbuild bundles them automatically.
 
 ### Releasing
 
-Version lives in **two** files that must be kept in sync: `package.json` and `src/manifest.json`. Bump both, add a dated entry to `CHANGELOG.md` (newest at top), run `npm run build`, commit, then tag `vX.Y.Z`.
+Version lives in **two** files that must be kept in sync: `package.json` and `src/manifest.json`. Bump both, add a dated entry to `CHANGELOG.md` (newest at top), run `npm run build`, commit, then tag `vX.Y.Z`. Latest release: 1.7.0 (2026-07-31) — file attachments, copy button, `fetch_url` fix.
 
 `README.md`'s Features list and "How It Works" steps are user-facing marketing/docs and are **not** covered by anything else in this repo — CHANGELOG.md tracks version history, CLAUDE.md tracks internals, but neither one keeps README in sync automatically. Several feature commits (image/file attachments, the copy button) landed without a README update and it drifted stale until caught by an explicit "make sure README is up to date" ask. When shipping a user-visible feature, check whether README's Features/How It Works/Privacy sections need a matching line, don't wait to be asked.
 

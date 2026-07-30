@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.7.0] - 2026-07-31
+
+### Added
+- **File Attachments**: Attach non-image files (PDF, text, code, CSV, JSON) alongside images — uploaded to xAI's Files API and read via the Responses API, so Grok can answer questions about their content
+- **Copy Button**: One click to copy any of Grok's replies to your clipboard
+
+### Fixed
+- **`fetch_url` Tool on Default Model**: The URL-reading tool was silently unavailable in plain-text conversations on the default model (Grok 4.3, which is also the default vision model), causing Grok to claim it couldn't browse the web instead of reading a mentioned URL. URLs are now fetched deterministically when mentioned in a message, independent of the model's tool-calling behavior
+
+---
+
 ## [1.6.0] - 2026-07-30
 
 ### Added
