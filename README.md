@@ -9,11 +9,13 @@ A powerful Chrome extension that brings xAI's Grok AI assistant directly into yo
 ## ✨ Features
 
 - **🤖 AI-Powered Conversations**: Chat with Grok 4.3 and other selectable Grok text/vision models directly in your browser
-- **🔀 Model Selection**: Pick your preferred text and vision model in Settings (Grok 4.3, Grok 4.20 Reasoning, Grok 4.20 fast, Grok 4.20 Multi-Agent, Grok Build 0.1)
+- **🔀 Model Selection**: Pick your preferred text and vision model in Settings (Grok 4.3, Grok 4.20 Reasoning, Grok 4.20 fast, Grok 4.20 Multi-Agent, Grok Build 0.1, Grok 4.5)
 - **📄 Page Content Analysis**: Ask questions about any webpage content
 - **📸 Screenshot Analysis**: Take screenshots and get AI-powered insights
+- **📎 Image & File Attachments**: Attach images (upload or paste from clipboard) for visual questions, or attach documents (PDF, text, code, CSV, JSON) for Grok to read and answer questions about
 - **⚡ Quick Actions**: One-click buttons to summarize the page or suggest questions
 - **🔄 Real-time Streaming**: See responses being generated in real-time
+- **📋 Copy Responses**: One click to copy any of Grok's replies to your clipboard
 - **💬 Tab-Specific Conversations**: Each tab maintains its own conversation history
 - **🪟 Per-Tab Side Panel**: The panel opens only on the tab you click it on and stays closed on others
 - **🎯 Context-Aware**: Automatically extracts and analyzes page content
@@ -30,7 +32,8 @@ A powerful Chrome extension that brings xAI's Grok AI assistant directly into yo
    - **Content Mode** — Analyzes webpage text; Grok can also fetch any URL you mention
    - **Screenshot Mode** — Takes a screenshot for visual analysis using your selected vision model
 4. **Ask Questions**: Get intelligent responses based on the current page
-5. **Streaming Responses**: Watch as Grok generates responses in real-time
+5. **Attach Images or Files** (optional): Click the paperclip icon or paste from your clipboard to attach images or documents to your message — independent of context mode
+6. **Streaming Responses**: Watch as Grok generates responses in real-time, and copy any reply with one click
 
 ## 🎨 Perfect For
 
@@ -46,6 +49,7 @@ A powerful Chrome extension that brings xAI's Grok AI assistant directly into yo
 - **No Server Data**: No data is sent to our servers
 - **Tab-Specific**: Conversations are stored per tab and cleared when tabs are closed
 - **Direct API**: All communication goes directly to xAI's secure API
+- **File Attachments**: Non-image files (PDF, text, code, etc.) are uploaded directly to xAI's Files API so Grok can read them, and automatically expire from xAI's servers after 24 hours
 
 ## 📋 Requirements
 
