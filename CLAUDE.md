@@ -71,6 +71,8 @@ Independent of context mode, users can attach images to a message via the paperc
 
 On send, `handleMessageSend` merges any context-mode screenshot with `pendingAttachments` into a single `images` array (screenshot first). Any non-empty `images` array forces the vision model, same as screenshot mode. Messages carry `images` (plural, array) end-to-end — `sidepanel.js` → `api.js` (`fetchStreamingReply`'s `images` param, one `image_url` content part per image) → conversation history entries (`msg.images`) — replacing the older single `screenshot` field, which is now used only internally for the auto-captured context-mode screenshot before it's folded into `images`.
 
+Images only (jpg/jpeg, png; ≤20MiB) are supported this way, sent inline as base64 data URLs via `image_url`, which is why the file picker and paste handler both filter to `image/*`. **Non-image files (PDF, .txt, .md, .csv, .json, code files; ≤48MB) are a different, unimplemented code path** — the xAI API supports them via a separate `input_file` content part, but only referenced by `file_id` (pre-uploaded through a dedicated Files API upload endpoint) or a public `file_url`, never inline base64. Adding non-image attachments would require a real upload step (e.g. `background.js` doing a `multipart/form-data` POST to get a `file_id`) before the chat request, not just a client-side `FileReader`/dataURL like images use.
+
 ### API
 
 - Endpoint: `https://api.x.ai/v1/chat/completions`

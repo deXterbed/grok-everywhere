@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.6.0] - 2026-07-30
+
+### Added
+- **Image Attachments**: Attach images to a message via the paperclip button or by pasting from the clipboard, independent of context mode. Attached images are staged as removable thumbnails and automatically routed to the vision model
+
+---
+
 ## [1.5.0] - 2026-06-18
 
 ### Added
