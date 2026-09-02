@@ -140,7 +140,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (!file || !file.type.startsWith("image/")) return;
     const reader = new FileReader();
     reader.onload = () => {
-      pendingAttachments.push(reader.result);
+      const dataUrl = reader.result;
+      // Sanity-check: reject empty or trivial data URLs that can appear when
+      // clipboard representations are corrupted or placeholder-only.
+      if (!dataUrl || dataUrl.length < 100) {
+        console.warn("Attachment image data URL too short, ignoring");
+        return;
+      }
+      pendingAttachments.push(dataUrl);
       renderAttachmentPreview();
     };
     reader.readAsDataURL(file);
@@ -212,7 +219,20 @@ document.addEventListener("DOMContentLoaded", async () => {
     const fileItems = items.filter((item) => item.kind === "file");
     if (fileItems.length === 0) return;
     e.preventDefault();
-    fileItems.forEach((item) => addAttachedFileOrImage(item.getAsFile()));
+
+    // Clipboard paste can expose the same image in multiple formats
+    // (e.g. PNG + TIFF on macOS). Dedupe by file size so distinct images
+    // pasted together are still both attached.
+    const seenImageSizes = new Set();
+    fileItems.forEach((item) => {
+      const file = item.getAsFile();
+      if (!file) return;
+      if (file.type.startsWith("image/")) {
+        if (seenImageSizes.has(file.size)) return;
+        seenImageSizes.add(file.size);
+      }
+      addAttachedFileOrImage(file);
+    });
   });
 
   let isUserAtBottom = true; // Track if user is at bottom of chat

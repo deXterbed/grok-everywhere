@@ -151,7 +151,11 @@ export async function fetchStreamingReply({
     },
   ];
 
-  conversationHistory.forEach((msg) => {
+  // The current turn was already pushed to conversationHistory by
+  // sendMessage; only iterate previous history here so we don't duplicate
+  // the current message/images in the API request.
+  const previousHistory = conversationHistory.slice(0, -1);
+  previousHistory.forEach((msg) => {
     if (msg.isUser) {
       if (msg.images && msg.images.length && supportsVision) {
         messages.push({
