@@ -105,9 +105,5 @@ export function createContext({
     updateContextModeUI();
   }
 
-  function clearShortcutMode() {
-    clearShortcutState();
-  }
-
-  return { updateContextModeUI, cycleContextMode, clearShortcutMode };
+  return { updateContextModeUI, cycleContextMode, clearShortcutMode: clearShortcutState };
 }

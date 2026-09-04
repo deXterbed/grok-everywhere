@@ -6,11 +6,9 @@
   "permissions": [
     "sidePanel",
     "storage",
-    "activeTab",
     "tabs",
     "scripting",
-    "commands",
-    "windows"
+    "commands"
   ],
   "action": {
     "default_title": "Open Grok everywhere",

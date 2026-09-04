@@ -53,13 +53,12 @@ src/                    # Source files (edit these)
   manifest.json         # Extension manifest (MV3)
   background.js         # Service worker
   content.js            # Content script (injected into pages)
-  sidepanel.html        # Side panel UI (inline CSS + markup)
+  sidepanel.html        # Side panel UI shell
   sidepanel.js          # Side panel logic
-  popup.html            # Popup placeholder
-  popup.js              # Popup logic
+  modules/              # ES modules (api, content, context, files, markdown, responses, storage, ui)
   icons/                # Extension icons
-  styles/               # Content script CSS
-dist/                   # Build output (gitignored, auto-generated)
+  styles/               # CSS files
+  dist/                   # Build output (gitignored, auto-generated)
 scripts/                # Build utilities
   build.mjs             # esbuild-based build script
   zip.mjs               # Chrome Web Store packaging script
@@ -68,8 +67,8 @@ package.json            # Dependencies and scripts
 
 ## How the Build Works
 
-1. **esbuild** builds all 4 JS files as IIFE bundles
-   - `background.js`, `content.js`, `sidepanel.js`, `popup.js`
+1. **esbuild** builds all 3 JS files as IIFE bundles
+   - `background.js`, `content.js`, `sidepanel.js`
    - IIFE format is used because Chrome content scripts can't use ES modules
    - Minified in production, sourcemaps in dev
    - Target: Chrome 110+

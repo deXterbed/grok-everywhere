@@ -236,7 +236,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
 
   let isUserAtBottom = true; // Track if user is at bottom of chat
-  let userScrolledUp = false; // Track if user manually scrolled up
 
   // ── Model definitions ──────────────────────────────────────────────
   // Based on xAI docs — active models as of June 2026
@@ -330,7 +329,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // Function to scroll to bottom only if user is at bottom
   function scrollToBottomIfNeeded() {
-    if (isUserAtBottom && !userScrolledUp) {
+    if (isUserAtBottom) {
       chatContainer.scrollTop = chatContainer.scrollHeight;
     }
   }
@@ -339,7 +338,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   function scrollToBottom() {
     chatContainer.scrollTop = chatContainer.scrollHeight;
     isUserAtBottom = true;
-    userScrolledUp = false;
   }
 
   // Auto-resize textarea to match content, like standard chat UIs
@@ -417,20 +415,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   }
 
-  // Add scroll event listener to track user scroll position
+  // Track whether the user is at the bottom of the chat
   chatContainer.addEventListener("scroll", () => {
-    const wasAtBottom = isUserAtBottom;
     isUserAtBottom = isAtBottom();
-
-    // If user scrolled up from bottom, mark as user-initiated scroll
-    if (wasAtBottom && !isUserAtBottom) {
-      userScrolledUp = true;
-    }
-
-    // If user scrolled back to bottom, reset the flag
-    if (isUserAtBottom) {
-      userScrolledUp = false;
-    }
   });
 
   // Load theme, API key, and model settings
@@ -602,7 +589,6 @@ document.addEventListener("DOMContentLoaded", async () => {
       conversationHistory = [];
       // Reset scroll position when switching tabs
       isUserAtBottom = true;
-      userScrolledUp = false;
 
       if (result[`conversationHistory_${tabId}`]) {
         conversationHistory = limitMessageHistory(
@@ -671,8 +657,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   // Initialize on load
   initializeCurrentTab();
 
-  // Check for tab changes every 2 seconds
-  setInterval(checkCurrentTab, 2000);
+  // Switch conversation when the user activates a different tab
+  chrome.tabs.onActivated.addListener(checkCurrentTab);
 
   // Also check when the sidepanel window gains focus (more responsive)
   window.addEventListener("focus", checkCurrentTab);
@@ -714,7 +700,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     autoResizeTextarea();
     messageInput.focus();
     isUserAtBottom = true;
-    userScrolledUp = false;
     updateClearHistoryVisibility();
   }
 
@@ -1352,7 +1337,6 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (chatContainer.children.length === 1) {
         chatContainer.scrollTop = 0;
         isUserAtBottom = false;
-        userScrolledUp = true;
       } else {
         // Otherwise scroll to bottom for new messages
         scrollToBottom();

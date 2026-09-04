@@ -12,20 +12,11 @@ export function showLoading(message = "Processing...") {
   showContextLoading(message);
 }
 
+// hideLoading only clears the loading visual state. Input/sendButton
+// re-enabling is handled by hideTypingIndicator (called next in every path).
 export function hideLoading() {
   const inputContainer = document.getElementById("input-container");
-  const messageInput = document.getElementById("message-input");
-  const sendButton = document.querySelector(".send-button");
-
   if (inputContainer) inputContainer.classList.remove("loading");
-  if (sendButton) {
-    sendButton.classList.remove("loading");
-    sendButton.disabled = false;
-  }
-  if (messageInput) {
-    messageInput.disabled = false;
-    messageInput.focus();
-  }
   hideContextLoading();
 }
 

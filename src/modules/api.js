@@ -30,6 +30,15 @@ export function modelSupportsVision(modelId) {
   return visionModels.includes(modelId);
 }
 
+export function parseApiError(errorData, fallback) {
+  try {
+    const errorJson = JSON.parse(errorData);
+    return errorJson.error?.message || errorJson.message || fallback;
+  } catch {
+    return errorData || fallback;
+  }
+}
+
 async function callApi(apiKey, model, messages, tools, toolChoice = "auto") {
   const body = {
     model,
@@ -52,16 +61,9 @@ async function callApi(apiKey, model, messages, tools, toolChoice = "auto") {
   });
   if (!response.ok) {
     const errorData = await response.text();
-    let errorMessage;
-    try {
-      const errorJson = JSON.parse(errorData);
-      errorMessage =
-        errorJson.error?.message || errorJson.message || "API request failed";
-    } catch {
-      errorMessage =
-        errorData || `API request failed with status ${response.status}`;
-    }
-    throw new Error(errorMessage);
+    throw new Error(
+      parseApiError(errorData, `API request failed with status ${response.status}`),
+    );
   }
   return response;
 }

@@ -19,8 +19,6 @@ src/                        # Source files
     storage.js              # chrome.storage.local persistence per tab
     ui.js                   # Loading/typing indicator helpers
   styles/                   # CSS files
-    main.css
-    conversation.css
     sidepanel.css
     icon.css
     katex.min.css
