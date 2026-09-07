@@ -1,3 +1,5 @@
+import { isOAuthToken, OAUTH_403_MESSAGE } from "./auth.js";
+
 const FETCH_URL_TOOL = {
   type: "function",
   function: {
@@ -22,7 +24,12 @@ function extractFirstUrl(text) {
 export function modelSupportsVision(modelId) {
   // Vision-capable Grok models — checked against xAI docs
   const visionModels = [
+    "grok-4.6",
+    "grok-4.5",
     "grok-4.3",
+    "grok-4.20-0309-reasoning",
+    "grok-4.20-0309-non-reasoning",
+    "grok-4.20-multi-agent-0309",
     "grok-build-0.1",
     "grok-2-vision",
     "grok-vision-beta",
@@ -37,6 +44,11 @@ export function parseApiError(errorData, fallback) {
   } catch {
     return errorData || fallback;
   }
+}
+
+export function parseHttpError(status, errorData, fallback, token) {
+  if (status === 403 && isOAuthToken(token)) return OAUTH_403_MESSAGE;
+  return parseApiError(errorData, fallback);
 }
 
 async function callApi(apiKey, model, messages, tools, toolChoice = "auto") {
@@ -62,7 +74,12 @@ async function callApi(apiKey, model, messages, tools, toolChoice = "auto") {
   if (!response.ok) {
     const errorData = await response.text();
     throw new Error(
-      parseApiError(errorData, `API request failed with status ${response.status}`),
+      parseHttpError(
+        response.status,
+        errorData,
+        `API request failed with status ${response.status}`,
+        apiKey,
+      ),
     );
   }
   return response;
