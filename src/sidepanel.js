@@ -330,8 +330,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     },
   ];
 
-  const DEFAULT_TEXT_MODEL = "grok-4.6";
-  const DEFAULT_VISION_MODEL = "grok-4.6";
+  const DEFAULT_TEXT_MODEL = "grok-4.3";
+  const DEFAULT_VISION_MODEL = "grok-4.3";
   let textModel = DEFAULT_TEXT_MODEL;
   let visionModel = DEFAULT_VISION_MODEL;
 
@@ -560,7 +560,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     "textModel",
     "visionModel",
     "authMode",
-    "modelDefaults",
   ]);
   storedApiKey = result.xaiApiKey || null;
   authMode = result.authMode || AUTH_MODE_API_KEY;
@@ -572,20 +571,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
   const savedTheme = result.theme || "dark";
   document.documentElement.dataset.theme = savedTheme;
-  const knownText = (id) => TEXT_MODELS.some((m) => m.id === id);
-  const knownVision = (id) => VISION_MODELS.some((m) => m.id === id);
-  if (result.modelDefaults === "grok-4.6") {
-    if (knownText(result.textModel)) textModel = result.textModel;
-    if (knownVision(result.visionModel)) visionModel = result.visionModel;
-  } else {
-    textModel = DEFAULT_TEXT_MODEL;
-    visionModel = DEFAULT_VISION_MODEL;
-    chrome.storage.local.set({
-      modelDefaults: "grok-4.6",
-      textModel,
-      visionModel,
-    });
-  }
+  if (result.textModel) textModel = result.textModel;
+  if (result.visionModel) visionModel = result.visionModel;
 
   // Populate model selects with saved values
   populateModelSelect(modelSelectEl, TEXT_MODELS, textModel);

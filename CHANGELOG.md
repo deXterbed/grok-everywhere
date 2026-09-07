@@ -5,8 +5,8 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
-- **Optional SuperGrok OAuth**: Sign in with your xAI / SuperGrok account via device-code (public Grok CLI client against `auth.x.ai` / `accounts.x.ai`) as an alternative to an API key. API-key auth remains the default and fallback. A 403 from `api.x.ai` after OAuth is shown once with no retry — typically the account isn't entitled for this API surface.
-- **Grok 4.6**: Current flagship is now in the text and vision model dropdowns (`grok-4.6`), and is the default at startup. Grok 4.5 and the Grok 4.20 family are also selectable for vision. Existing models were kept.
+- **Optional SuperGrok OAuth**: Sign in with your xAI / SuperGrok account via device-code (public Grok CLI client against `auth.x.ai` / `accounts.x.ai`) as an alternative to an API key. The OAuth bearer is sent to `api.x.ai` on existing chat/file calls. API-key auth remains the default and fallback. SuperGrok login can succeed and inference can still 403 if the account is not entitled for that API surface — that 403 is shown once with no retry; use an API key.
+- **Grok 4.6**: `grok-4.6` is available in the text and vision model dropdowns. The startup default is unchanged (Grok 4.3).
 
 ---
 
