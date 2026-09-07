@@ -1,6 +1,6 @@
 # Grok Everywhere – Privacy Policy
 
-*Last updated: May 2026*
+*Last updated: September 2026*
 
 ## What data is collected
 
@@ -8,7 +8,7 @@ When you use the "Ask about this page" or screenshot features, the text content 
 
 ## What data is stored locally
 
-Your xAI API key and conversation history are stored in your browser's local extension storage (`chrome.storage.local`). This data never leaves your device except as described above.
+Your xAI API key, optional SuperGrok OAuth access and refresh tokens, and conversation history are stored in your browser's local extension storage (`chrome.storage.local`). This data never leaves your device except as described above.
 
 ## What data the developer collects
 
@@ -16,7 +16,7 @@ None. The extension has no backend server. The developer does not receive, store
 
 ## Third parties
 
-The only third party this extension communicates with is xAI's API at `api.x.ai`. No analytics, tracking, or advertising services are used.
+The only third party this extension communicates with is xAI. Chat, screenshots, page content, and file uploads go to `api.x.ai`. Optional SuperGrok device-code sign-in talks to `auth.x.ai` and `accounts.x.ai` for login and token refresh. There is no extension backend. No analytics, tracking, or advertising services are used.
 
 ## Contact
 

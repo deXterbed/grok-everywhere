@@ -70,7 +70,7 @@ export function hideTypingIndicator(modelLabel) {
   const sendButton = document.querySelector(".send-button");
 
   if (currentModelDisplay) {
-    currentModelDisplay.textContent = modelLabel || "Grok 4.6";
+    currentModelDisplay.textContent = modelLabel || "Grok 4.3";
   }
   if (modelBadge) {
     modelBadge.style.animation = "";
