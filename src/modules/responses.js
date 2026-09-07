@@ -8,7 +8,7 @@ export const FILE_MODEL = "grok-4.5";
 const SYSTEM_INSTRUCTIONS =
   "You are Grok, a helpful AI assistant created by xAI. The user has attached one or more files to this conversation — use them to answer their questions.";
 
-import { parseApiError } from "./api.js";
+import { parseHttpError } from "./api.js";
 
 async function callResponsesApi(apiKey, input) {
   const response = await fetch("https://api.x.ai/v1/responses", {
@@ -27,7 +27,12 @@ async function callResponsesApi(apiKey, input) {
   if (!response.ok) {
     const errorData = await response.text();
     throw new Error(
-      parseApiError(errorData, `API request failed with status ${response.status}`),
+      parseHttpError(
+        response.status,
+        errorData,
+        `API request failed with status ${response.status}`,
+        apiKey,
+      ),
     );
   }
   return response;

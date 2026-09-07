@@ -51,5 +51,10 @@
     "48": "icons/grok.png",
     "128": "icons/grok.png"
   },
-  "host_permissions": ["https://api.x.ai/*", "<all_urls>"]
+  "host_permissions": [
+    "https://api.x.ai/*",
+    "https://auth.x.ai/*",
+    "https://accounts.x.ai/*",
+    "<all_urls>"
+  ]
 }

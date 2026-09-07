@@ -8,8 +8,8 @@ A powerful Chrome extension that brings xAI's Grok AI assistant directly into yo
 
 ## ✨ Features
 
-- **🤖 AI-Powered Conversations**: Chat with Grok 4.3 and other selectable Grok text/vision models directly in your browser
-- **🔀 Model Selection**: Pick your preferred text and vision model in Settings (Grok 4.3, Grok 4.20 Reasoning, Grok 4.20 fast, Grok 4.20 Multi-Agent, Grok Build 0.1, Grok 4.5)
+- **🤖 AI-Powered Conversations**: Chat with Grok 4.6 and other selectable Grok text/vision models directly in your browser
+- **🔀 Model Selection**: Pick your preferred text and vision model in Settings (defaults to Grok 4.6; also Grok 4.5, Grok 4.3, Grok 4.20 Reasoning, Grok 4.20 fast, Grok 4.20 Multi-Agent, Grok Build 0.1)
 - **📄 Page Content Analysis**: Ask questions about any webpage content
 - **📸 Screenshot Analysis**: Take screenshots and get AI-powered insights
 - **📎 Image & File Attachments**: Attach images (upload or paste from clipboard) for visual questions, or attach documents (PDF, text, code, CSV, JSON) for Grok to read and answer questions about
@@ -22,11 +22,12 @@ A powerful Chrome extension that brings xAI's Grok AI assistant directly into yo
 - **🌐 URL Fetching**: Mention a URL and Grok can read and analyze it
 - **🎨 Theme Support**: Dark and light themes for comfortable use
 - **⌨️ Keyboard Shortcuts**: Quick access with customizable shortcuts
+- **🔐 SuperGrok Sign-in (optional)**: Device-code login with your xAI / SuperGrok account as an alternative to an API key. API-key auth stays the default and fallback
 
 ## 🎯 How It Works
 
 1. **Install the Extension**: Get it from the [Chrome Web Store](https://chromewebstore.google.com/detail/grok-everywhere/onddcpahoenacjcgkldfegocdgdgajpn)
-2. **Set Your API Key**: Enter your xAI API key to get started
+2. **Sign in**: Enter an xAI API key (default), or click **SuperGrok** to sign in with your xAI account via device-code. If SuperGrok OAuth returns 403 on `api.x.ai`, use an API key instead.
 3. **Choose Context Mode** (click the chrome icon button to cycle):
    - **No Context** — General conversations with your selected text model
    - **Content Mode** — Analyzes webpage text; Grok can also fetch any URL you mention
@@ -45,15 +46,15 @@ A powerful Chrome extension that brings xAI's Grok AI assistant directly into yo
 
 ## 🔒 Privacy & Security
 
-- **Local Storage**: Your API key is stored locally in your browser
+- **Local Storage**: Your API key and SuperGrok OAuth tokens (if you sign in) are stored locally in your browser
 - **No Server Data**: No data is sent to our servers
 - **Tab-Specific**: Conversations are stored per tab and cleared when tabs are closed
-- **Direct API**: All communication goes directly to xAI's secure API
+- **Direct API**: Chat goes directly to xAI's API at `api.x.ai`. SuperGrok sign-in talks to `auth.x.ai` / `accounts.x.ai` only for the device-code login.
 - **File Attachments**: Non-image files (PDF, text, code, etc.) are uploaded directly to xAI's Files API so Grok can read them, and automatically expire from xAI's servers after 24 hours
 
 ## 📋 Requirements
 
-- **xAI API key** (get one at [https://x.ai](https://x.ai))
+- **xAI API key** (get one at [https://x.ai](https://x.ai)), **or** a SuperGrok / X Premium+ account for optional OAuth sign-in
 - **Chrome browser**
 - **Internet connection**
 
@@ -128,4 +129,4 @@ For support, feature requests, or bug reports:
 
 ---
 
-**Note**: This extension requires an xAI API key to function. You can get one by signing up at [https://x.ai](https://x.ai).
+**Note**: This extension uses an xAI API key by default. You can get one at [https://x.ai](https://x.ai). SuperGrok OAuth is optional and uses the public Grok CLI client; xAI may still require an API key if your account is not entitled for that OAuth API surface.
