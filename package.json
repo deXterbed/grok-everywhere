@@ -1,13 +1,14 @@
 {
   "name": "grok-everywhere",
-  "version": "1.7.0",
+  "version": "1.8.0",
   "private": true,
   "description": "Grok in your browser sidepanel — Chrome Extension",
   "scripts": {
     "dev": "node scripts/build.mjs --watch",
     "build": "node scripts/build.mjs",
     "zip": "node scripts/zip.mjs",
-    "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true});console.log('dist/ cleaned')\""
+    "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true});console.log('dist/ cleaned')\"",
+    "test": "node scripts/check-websearch.mjs"
   },
   "devDependencies": {
     "esbuild": "^0.25.4"

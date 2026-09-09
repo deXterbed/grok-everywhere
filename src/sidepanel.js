@@ -289,6 +289,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   let textModel = "grok-4.3";
   let visionModel = "grok-4.3";
 
+  // Web search via Ollama's hosted API — separate key from xAI, off by default
+  let ollamaApiKey = null;
+  let webSearchEnabled = false;
+
   const modelSelectEl = document.getElementById("model-text-select");
   const visionSelectEl = document.getElementById("model-vision-select");
 
@@ -426,8 +430,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     "theme",
     "textModel",
     "visionModel",
+    "ollamaApiKey",
+    "webSearchEnabled",
   ]);
   apiKey = result.xaiApiKey;
+  ollamaApiKey = result.ollamaApiKey || null;
+  webSearchEnabled = Boolean(result.webSearchEnabled);
   const savedTheme = result.theme || "dark";
   document.documentElement.dataset.theme = savedTheme;
   if (result.textModel) textModel = result.textModel;
@@ -904,11 +912,18 @@ document.addEventListener("DOMContentLoaded", async () => {
   const settingsView = document.getElementById("settings-view");
   const settingsApiInput = document.getElementById("settings-api-input");
   const settingsApiSave = document.getElementById("settings-api-save");
+  const settingsOllamaInput = document.getElementById("settings-ollama-input");
+  const settingsOllamaSave = document.getElementById("settings-ollama-save");
+  const webSearchToggle = document.getElementById(
+    "settings-web-search-toggle",
+  );
 
   function openSettings() {
     settingsApiInput.value = apiKey || "";
     settingsApiSave.textContent = "Save";
     settingsApiSave.classList.remove("saved");
+    settingsOllamaInput.value = ollamaApiKey || "";
+    webSearchToggle.checked = webSearchEnabled;
     // Sync select values to current state before opening
     modelSelectEl.value = textModel;
     visionSelectEl.value = visionModel;
@@ -955,6 +970,25 @@ document.addEventListener("DOMContentLoaded", async () => {
       settingsApiSave.textContent = "Save";
       settingsApiSave.classList.remove("saved");
     }, 2000);
+  });
+
+  // Unlike the xAI key, saving an empty Ollama key is allowed — it clears
+  // the key, which (with the toggle) is how search gets switched off.
+  settingsOllamaSave.addEventListener("click", async () => {
+    const newKey = settingsOllamaInput.value.trim();
+    ollamaApiKey = newKey || null;
+    await chrome.storage.local.set({ ollamaApiKey });
+    settingsOllamaSave.textContent = "Saved";
+    settingsOllamaSave.classList.add("saved");
+    setTimeout(() => {
+      settingsOllamaSave.textContent = "Save";
+      settingsOllamaSave.classList.remove("saved");
+    }, 2000);
+  });
+
+  webSearchToggle.addEventListener("change", async () => {
+    webSearchEnabled = webSearchToggle.checked;
+    await chrome.storage.local.set({ webSearchEnabled });
   });
 
   document.querySelectorAll(".theme-btn").forEach((btn) => {
@@ -1093,6 +1127,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             streamingMessageId,
             model,
             apiKey,
+            ollamaApiKey,
+            webSearchEnabled,
             conversationHistory,
             onStream: updateStreamingContent,
           });

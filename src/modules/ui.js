@@ -82,5 +82,10 @@ export function hideTypingIndicator(modelLabel) {
     messageInput.classList.remove("loading");
     messageInput.focus();
   }
-  if (sendButton) sendButton.disabled = false;
+  if (sendButton) {
+    sendButton.disabled = false;
+    // showLoading() sets this class to swap the arrow for a spinner;
+    // without removing it here the spinner spins forever after the reply.
+    sendButton.classList.remove("loading");
+  }
 }

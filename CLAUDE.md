@@ -12,7 +12,7 @@ src/                        # Source files
   sidepanel.html            # Side panel UI shell
   sidepanel.js              # Side panel logic (entry point)
   modules/
-    api.js                  # xAI API client, streaming, fetch_url tool
+    api.js                  # xAI API client, streaming, fetch_url + web_search tools
     content.js              # Screenshot & page content extraction helpers
     context.js              # Context mode cycling ("none" / "content" / "screenshot")
     markdown.js             # Markdown → HTML renderer (with KaTeX math)
@@ -40,7 +40,7 @@ Sidepanel (sidepanel.js) ←→ Background (background.js) ←→ Content Script
 ```
 
 - **Sidepanel** is the main UI — sends messages, renders responses, manages conversation history
-- **Background service worker** is stateless — relays messages, handles tab capture (screenshots), does URL fetching for the `fetch_url` tool, and opens the side panel per tab
+- **Background service worker** is stateless — relays messages, handles tab capture (screenshots), does URL fetching for the `fetch_url` tool and web search requests for the `web_search` tool, and opens the side panel per tab
 - **Content script** is injected into `<all_urls>` — extracts page text content and captures screenshots on demand
 
 ### Per-Tab Side Panel
@@ -82,10 +82,22 @@ Both attachment kinds flow end-to-end alongside `images`: `sidepanel.js` → `ap
 - Chat endpoint (default, no files involved): `https://api.x.ai/v1/chat/completions` — SSE streaming, parsed line by line. Models: user-selected text/vision model IDs (see `TEXT_MODELS`/`VISION_MODELS` in `sidepanel.js`).
 - Files endpoint (any turn with a file attachment, current or historical): `https://api.x.ai/v1/responses` via `modules/responses.js` — see Attachments above. Always uses `FILE_MODEL` ("grok-4.5"), regardless of the user's selected text/vision model.
 - File upload endpoint: `https://api.x.ai/v1/files` via `modules/files.js`.
+- Web search endpoint (only when enabled in Settings): `https://ollama.com/api/web_search` — called from `background.js` with the user's Ollama API key, returned to the model as `web_search` tool results. See Web Search (Ollama) below.
 
 **`fetch_url` tool gating — don't reuse `supportsVision` for this.** `grok-4.3` is xAI's flagship model and is the *default* for both `textModel` and `visionModel` (`TEXT_MODELS`/`VISION_MODELS` in `sidepanel.js`), so `modelSupportsVision(model)` returns `true` even in a plain-text conversation with zero images attached. `fetchStreamingReply` (`api.js`) previously gated the `fetch_url` tool on `supportsVision`, which silently stripped the tool from every request on the default model — the model would then respond with a canned "I can't browse the web" instead of fetching anything, with no error surfaced anywhere. Tool/URL-fetch availability must be gated on `hasImagesThisTurn` (whether `images` is actually non-empty *this turn*), not on whether the selected model is merely vision-*capable*. `supportsVision` stays correct for the image-content-type decisions (whether to render `image_url` parts) — the bug was specifically conflating "model can do vision" with "this request is a vision request."
 
 Separately: forcing `tool_choice` to a named function (`{ type: "function", function: { name: "fetch_url" } }`) to make the model call fetch_url was tried and **did not reliably work** — the model streamed acknowledgment text ("I'll read that... one moment") without ever emitting a `tool_calls` delta, silently doing nothing. Don't rely on forced `tool_choice` for this; instead `fetchStreamingReply` now deterministically extracts a URL from the user's message client-side (`extractFirstUrl()`) and fetches it via `fetchUrl()` *before* calling the model at all, injecting the content as context. The `fetch_url` tool is still offered (`tool_choice: "auto"`) as a fallback for URLs the model encounters indirectly (e.g. referenced from earlier turns), but the primary "read this URL" case no longer depends on the model choosing to call anything.
+
+### Web Search (Ollama)
+
+Optional `web_search` tool backed by Ollama's hosted web search API (separate provider from xAI; free key at ollama.com/settings/keys, configured in Settings → Web Search).
+
+- **Gating mirrors the `fetch_url` lesson**: the tool is offered only when `webSearchEnabled && ollamaApiKey && !hasImagesThisTurn` — config/turn state, never model capability. The system prompt only mentions `web_search` when it will actually be offered, so the model can't pretend to search.
+- **Date injection**: the system prompt always states today's date (client-side `new Date()`). Models hallucinate the date when asked directly instead of calling `web_search` — providing it removes the need to search for that case entirely.
+- **Networking rail**: sidepanel (`api.js` `webSearch()`) → `chrome.runtime.sendMessage({action: "webSearch"})` → `background.js` POSTs to `https://ollama.com/api/web_search` with the key passed per-request (the worker stays stateless). No manifest change was needed — `host_permissions` already includes `<all_urls>`, which covers ollama.com.
+- **Tool loop**: `fetchStreamingReply` runs a bounded tool loop (`MAX_TOOL_ROUNDS = 4`) — each round either returns the answer or executes the requested tool(s) (`fetch_url` or `web_search`), appends the results, and calls again. This replaced the old fixed two-call flow (whose second call passed `tools: []`), enabling chains like search → fetch a result link. `readStream` accumulates tool calls per stream index, so parallel calls in one response (e.g. two `web_search` calls for a comparison question — this used to concatenate their args into one corrupt JSON blob and crash the turn) are all executed and returned as separate tool results; a malformed single call is reported back as the tool result instead of throwing.
+- **Result size**: snippets capped at 1000 chars each / 8000 total (`formatSearchResults`) — Ollama warns search results can be thousands of tokens, and tool input eats the model's reply budget. `scripts/check-websearch.mjs` (`npm test`) asserts the caps.
+- **Settings**: `ollamaApiKey` (password input; saving empty clears it — together with the toggle, that's the off switch) and `webSearchEnabled` (checkbox) in `chrome.storage.local`.
 
 ### Conversation Storage
 
@@ -105,6 +117,10 @@ User messages are rendered via `textSpan.textContent = content` in `addMessage()
 ### Copy Button (assistant messages)
 
 `appendAssistantFooter()` in `sidepanel.js` renders the "Using \<model\>" label and a copy button together under every assistant reply (shared by `addMessage()` and `updateStreamingMessage()` — previously two near-duplicated inline-styled blocks). `createCopyButton()` copies the raw reply string (not rendered HTML/markdown) via `navigator.clipboard.writeText()`. **Always attach a `.catch()` here** — a rejected clipboard write (e.g. focus/permission issues in the side panel context) fails silently with no visible error otherwise, since there's nothing else in the click handler to surface it. On success the button icon swaps to a checkmark for ~1.2s (`.message-copy-button.copied`) — a color/opacity change alone was tried first and was too subtle to register as feedback.
+
+### Send Button Loading State
+
+`showLoading()` (`ui.js`) adds a `.loading` class to the send button on every send — CSS swaps the arrow for a spinner. `hideTypingIndicator()` is the single cleanup point for all loading/typing state on **every** path (success, error, extraction failure): it must reset `disabled` AND remove `.loading` from the send button and message input, otherwise the spinner spins forever after the reply. `hideLoading()` deliberately clears only the input-container overlay — keep cleanup in `hideTypingIndicator`, don't split it again.
 
 ### Content Extraction (content.js)
 
@@ -151,7 +167,7 @@ Import npm packages normally in JS files; esbuild bundles them automatically.
 
 ### Releasing
 
-Version lives in **two** files that must be kept in sync: `package.json` and `src/manifest.json`. Bump both, add a dated entry to `CHANGELOG.md` (newest at top), run `npm run build`, commit, then tag `vX.Y.Z`. Latest release: 1.7.0 (2026-07-31) — file attachments, copy button, `fetch_url` fix.
+Version lives in **two** files that must be kept in sync: `package.json` and `src/manifest.json`. Bump both, add a dated entry to `CHANGELOG.md` (newest at top), run `npm run build`, commit, then tag `vX.Y.Z`. Keep commit messages short: one-line subject by default, no body unless the why genuinely isn't obvious from the diff. Latest release: 1.8.0 (2026-09-09) — Ollama web search.
 
 `README.md`'s Features list and "How It Works" steps are user-facing marketing/docs and are **not** covered by anything else in this repo — CHANGELOG.md tracks version history, CLAUDE.md tracks internals, but neither one keeps README in sync automatically. Several feature commits (image/file attachments, the copy button) landed without a README update and it drifted stale until caught by an explicit "make sure README is up to date" ask. When shipping a user-visible feature, check whether README's Features/How It Works/Privacy sections need a matching line, don't wait to be asked.
 
@@ -163,6 +179,7 @@ Version lives in **two** files that must be kept in sync: `package.json` and `sr
 | `npm run build` | Production build |
 | `npm run zip` | Package dist/ for Chrome Web Store |
 | `npm run clean` | Delete dist/ |
+| `npm test` | Self-check for web search result formatting |
 
 ## Key Dependencies
 

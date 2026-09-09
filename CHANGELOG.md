@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.8.0] - 2026-09-09
+
+### Added
+- **Web Search (Ollama)**: Grok can now search the live web via Ollama's hosted web search API. Enable it in Settings → Web Search with a free Ollama API key ([ollama.com/settings/keys](https://ollama.com/settings/keys)). The model can chain a search with a URL fetch (e.g. search, then read a result link) and cites source URLs in its answers
+
+### Fixed
+- **Parallel Tool Calls**: Comparison questions made the model emit multiple tool calls in one response; their arguments were merged into corrupt JSON, crashing the reply ("Unexpected non-whitespace character after JSON"). Tool calls are now tracked per stream index and all results are returned together
+- **Send Button Spinner**: The loading spinner on the send button kept spinning after a reply completed; loading state is now fully cleared on every code path
+
+---
+
 ## [1.7.0] - 2026-07-31
 
 ### Added

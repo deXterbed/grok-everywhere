@@ -14,6 +14,26 @@ const FETCH_URL_TOOL = {
   },
 };
 
+const WEB_SEARCH_TOOL = {
+  type: "function",
+  function: {
+    name: "web_search",
+    description:
+      "Search the web for current information. Use this for questions about recent events, current facts, or anything you are unsure about.",
+    parameters: {
+      type: "object",
+      properties: {
+        query: { type: "string", description: "The search query string" },
+        max_results: {
+          type: "number",
+          description: "Maximum results to return (default 5, max 10)",
+        },
+      },
+      required: ["query"],
+    },
+  },
+};
+
 function extractFirstUrl(text) {
   const match = text.match(/https?:\/\/\S+/i);
   return match ? match[0].replace(/[),.]+$/, "") : null;
@@ -68,12 +88,16 @@ async function callApi(apiKey, model, messages, tools, toolChoice = "auto") {
   return response;
 }
 
-async function readStream(response, streamingMessageId, onStream) {
+export async function readStream(response, streamingMessageId, onStream) {
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let fullContent = "";
   let buffer = "";
-  let toolCall = null;
+  // Tool calls accumulate keyed by their stream index — the model can emit
+  // several in parallel (e.g. two web_searches for an "X vs Y" question),
+  // and their argument chunks interleave. Concatenating them into one call
+  // corrupts the JSON ("Unexpected non-whitespace character after JSON").
+  const toolCalls = [];
 
   try {
     while (true) {
@@ -85,7 +109,8 @@ async function readStream(response, streamingMessageId, onStream) {
       for (const line of lines) {
         if (!line.startsWith("data: ")) continue;
         const data = line.slice(6);
-        if (data === "[DONE]") return { content: fullContent, toolCall };
+        if (data === "[DONE]")
+          return { content: fullContent, toolCalls: toolCalls.filter(Boolean) };
         try {
           const parsed = JSON.parse(data);
           const delta = parsed.choices?.[0]?.delta;
@@ -95,16 +120,13 @@ async function readStream(response, streamingMessageId, onStream) {
           }
           if (delta?.tool_calls) {
             for (const tc of delta.tool_calls) {
-              if (!toolCall)
-                toolCall = {
-                  id: tc.id || "",
-                  name: tc.function?.name || "",
-                  args: "",
-                };
-              if (tc.id) toolCall.id = tc.id;
-              if (tc.function?.name) toolCall.name = tc.function.name;
+              const idx = tc.index ?? 0;
+              if (!toolCalls[idx])
+                toolCalls[idx] = { id: "", name: "", args: "" };
+              if (tc.id) toolCalls[idx].id = tc.id;
+              if (tc.function?.name) toolCalls[idx].name = tc.function.name;
               if (tc.function?.arguments)
-                toolCall.args += tc.function.arguments;
+                toolCalls[idx].args += tc.function.arguments;
             }
           }
         } catch {
@@ -116,7 +138,7 @@ async function readStream(response, streamingMessageId, onStream) {
     reader.releaseLock();
   }
 
-  return { content: fullContent, toolCall };
+  return { content: fullContent, toolCalls: toolCalls.filter(Boolean) };
 }
 
 async function fetchUrl(url) {
@@ -133,6 +155,39 @@ async function fetchUrl(url) {
   });
 }
 
+// Ollama's hosted web search API (https://docs.ollama.com/capabilities/web-search),
+// routed through the background service worker like fetchUrl. Snippets are
+// capped per result and overall — search results can be huge, and tool input
+// eats into the model's reply budget.
+const MAX_SNIPPET_CHARS = 1000;
+const MAX_RESULTS_CHARS = 8000;
+
+export function formatSearchResults(results) {
+  if (!Array.isArray(results) || results.length === 0) {
+    return "No results found.";
+  }
+  const formatted = results
+    .map(
+      (r, i) =>
+        `${i + 1}. ${r.title || "Untitled"} — ${r.url}\n${(r.content || "").slice(0, MAX_SNIPPET_CHARS)}`,
+    )
+    .join("\n\n");
+  return formatted.slice(0, MAX_RESULTS_CHARS);
+}
+
+async function webSearch(query, maxResults, ollamaApiKey) {
+  const response = await new Promise((resolve) => {
+    chrome.runtime.sendMessage(
+      { action: "webSearch", query, maxResults, apiKey: ollamaApiKey },
+      (r) => resolve(r),
+    );
+  });
+  if (chrome.runtime.lastError || response?.error) {
+    return `Error searching the web: ${chrome.runtime.lastError?.message || response?.error}`;
+  }
+  return formatSearchResults(response?.results);
+}
+
 export async function fetchStreamingReply({
   message,
   images,
@@ -140,16 +195,37 @@ export async function fetchStreamingReply({
   streamingMessageId,
   model,
   apiKey,
+  ollamaApiKey,
+  webSearchEnabled,
   conversationHistory,
   onStream,
 }) {
   const supportsVision = modelSupportsVision(model);
 
+  // web_search needs its own Ollama API key (separate from xAI) and is off
+  // by default — only mention it to the model when it will actually be
+  // offered, otherwise it may pretend to search.
+  const searchOn = Boolean(webSearchEnabled && ollamaApiKey);
+
+  // Models don't know today's date and will hallucinate it when asked
+  // directly (e.g. answered "October 10, 2025" for "today's date?") instead
+  // of calling web_search — inject it so date questions never depend on the
+  // model choosing to search.
+  const today = new Date().toLocaleDateString("en-US", {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+
   const messages = [
     {
       role: "system",
       content:
-        "You are Grok, a helpful AI assistant created by xAI. You will be provided context from the user's current webpage to help answer their questions more effectively. Focus on the main content, articles, text, and meaningful information from the webpage. Provide clear, concise responses that directly address the user's question based on the webpage content. You have a fetch_url tool that reads the live content of any webpage — you are not limited to prior knowledge or a training cutoff for this. Whenever the user's message contains or references a specific URL, always call fetch_url to read it before answering; never claim you can't browse or access the internet.",
+        `You are Grok, a helpful AI assistant created by xAI. Today's date is ${today}. You will be provided context from the user's current webpage to help answer their questions more effectively. Focus on the main content, articles, text, and meaningful information from the webpage. Provide clear, concise responses that directly address the user's question based on the webpage content. You have a fetch_url tool that reads the live content of any webpage — you are not limited to prior knowledge or a training cutoff for this. Whenever the user's message contains or references a specific URL, always call fetch_url to read it before answering; never claim you can't browse or access the internet.` +
+        (searchOn
+          ? " You also have a web_search tool that queries the live web — use it when the user asks about recent events, current facts, or anything you are not certain about, and cite the source URLs in your answer."
+          : ""),
     },
   ];
 
@@ -229,44 +305,63 @@ export async function fetchStreamingReply({
 
   messages.push({ role: "user", content: message });
 
-  const tools = hasImagesThisTurn ? [] : [FETCH_URL_TOOL];
-  const response1 = await callApi(apiKey, model, messages, tools);
-  const { content: content1, toolCall } = await readStream(
-    response1,
-    streamingMessageId,
-    onStream,
-  );
+  const tools = hasImagesThisTurn
+    ? []
+    : searchOn
+      ? [FETCH_URL_TOOL, WEB_SEARCH_TOOL]
+      : [FETCH_URL_TOOL];
 
-  if (!toolCall) return content1;
+  // Tool loop: each round either produces the final answer or requests
+  // tool call(s), whose results are appended before the next call — so the
+  // model can chain (e.g. web_search, then fetch_url on a result link).
+  // Capped to bound cost and runaway loops.
+  const MAX_TOOL_ROUNDS = 4;
+  for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
+    const response = await callApi(apiKey, model, messages, tools);
+    const { content, toolCalls } = await readStream(
+      response,
+      streamingMessageId,
+      onStream,
+    );
 
-  // Tool call: fetch the URL and stream the final answer
-  const { url } = JSON.parse(toolCall.args);
-  onStream(streamingMessageId, `Fetching ${url}...`);
+    if (toolCalls.length === 0 || round === MAX_TOOL_ROUNDS) return content;
 
-  const urlContent = await fetchUrl(url);
+    const toolResults = [];
+    for (const toolCall of toolCalls) {
+      // A malformed single call shouldn't kill the whole reply — report the
+      // failure back as the tool result so the model can recover.
+      let toolResult;
+      try {
+        if (toolCall.name === "web_search") {
+          const { query, max_results } = JSON.parse(toolCall.args);
+          onStream(streamingMessageId, `Searching the web for "${query}"...`);
+          toolResult = await webSearch(query, max_results, ollamaApiKey);
+        } else {
+          const { url } = JSON.parse(toolCall.args);
+          onStream(streamingMessageId, `Fetching ${url}...`);
+          toolResult = await fetchUrl(url);
+        }
+      } catch (err) {
+        toolResult = `Error running ${toolCall.name}: ${err.message}`;
+      }
+      toolResults.push(toolResult);
+    }
 
-  messages.push({
-    role: "assistant",
-    content: null,
-    tool_calls: [
-      {
-        id: toolCall.id,
+    messages.push({
+      role: "assistant",
+      content: null,
+      tool_calls: toolCalls.map((tc) => ({
+        id: tc.id,
         type: "function",
-        function: { name: toolCall.name, arguments: toolCall.args },
-      },
-    ],
-  });
-  messages.push({
-    role: "tool",
-    tool_call_id: toolCall.id,
-    content: urlContent,
-  });
-
-  const response2 = await callApi(apiKey, model, messages, []);
-  const { content: content2 } = await readStream(
-    response2,
-    streamingMessageId,
-    onStream,
-  );
-  return content2;
+        function: { name: tc.name, arguments: tc.args },
+      })),
+    });
+    toolCalls.forEach((tc, i) => {
+      messages.push({
+        role: "tool",
+        tool_call_id: tc.id,
+        content: toolResults[i],
+      });
+    });
+  }
 }

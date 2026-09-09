@@ -140,6 +140,26 @@
         <select id="model-vision-select" class="settings-select"></select>
       </div>
       <div class="settings-section">
+        <div class="settings-section-title">Web Search</div>
+        <div class="settings-row">
+          <span>Enable</span>
+          <input type="checkbox" id="settings-web-search-toggle" />
+        </div>
+        <div class="settings-api-row">
+          <input
+            type="password"
+            id="settings-ollama-input"
+            placeholder="Ollama API key"
+            autocomplete="off"
+          />
+          <button id="settings-ollama-save">Save</button>
+        </div>
+        <div class="settings-hint">
+          Get a key at
+          <a href="https://ollama.com/settings/keys" target="_blank">ollama.com/settings/keys</a>
+        </div>
+      </div>
+      <div class="settings-section">
         <div class="settings-section-title">Appearance</div>
         <div class="settings-row">
           <span>Theme</span>

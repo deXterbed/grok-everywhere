@@ -97,6 +97,29 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true;
   }
 
+  if (request.action === "webSearch") {
+    // Ollama's hosted web search API. The Ollama key is passed per-request
+    // from the sidepanel (which owns settings); the worker stays stateless.
+    fetch("https://ollama.com/api/web_search", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${request.apiKey}`,
+      },
+      body: JSON.stringify({
+        query: request.query,
+        max_results: Math.min(Number(request.maxResults) || 5, 10),
+      }),
+    })
+      .then(async (r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        const data = await r.json();
+        sendResponse({ results: data.results || [] });
+      })
+      .catch((err) => sendResponse({ error: err.message }));
+    return true;
+  }
+
   if (request.action === "captureTab") {
     chrome.tabs.captureVisibleTab(
       null,

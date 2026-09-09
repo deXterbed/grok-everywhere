@@ -1344,7 +1344,8 @@ html {
   color: var(--text-secondary);
 }
 
-#settings-api-save {
+#settings-api-save,
+#settings-ollama-save {
   padding: 8px 14px;
   background-color: var(--accent-dim);
   border: 1px solid var(--accent-border);
@@ -1357,11 +1358,13 @@ html {
   transition: background-color 150ms ease;
 }
 
-#settings-api-save:hover {
+#settings-api-save:hover,
+#settings-ollama-save:hover {
   background-color: rgba(124, 106, 247, 0.2);
 }
 
-#settings-api-save.saved {
+#settings-api-save.saved,
+#settings-ollama-save.saved {
   color: #4caf7d;
   background-color: rgba(76, 175, 125, 0.1);
   border-color: rgba(76, 175, 125, 0.3);
@@ -1379,6 +1382,13 @@ html {
 
 .settings-hint a:hover {
   text-decoration: underline;
+}
+
+#settings-web-search-toggle {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+  cursor: pointer;
 }
 
 .settings-row {

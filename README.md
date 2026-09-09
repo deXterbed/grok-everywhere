@@ -20,6 +20,7 @@ A powerful Chrome extension that brings xAI's Grok AI assistant directly into yo
 - **🪟 Per-Tab Side Panel**: The panel opens only on the tab you click it on and stays closed on others
 - **🎯 Context-Aware**: Automatically extracts and analyzes page content
 - **🌐 URL Fetching**: Mention a URL and Grok can read and analyze it
+- **🔎 Web Search**: Grok can search the live web (via Ollama's web search API) for recent events and facts, citing sources — enable it in Settings → Web Search with a free Ollama API key
 - **🎨 Theme Support**: Dark and light themes for comfortable use
 - **⌨️ Keyboard Shortcuts**: Quick access with customizable shortcuts
 
@@ -49,11 +50,13 @@ A powerful Chrome extension that brings xAI's Grok AI assistant directly into yo
 - **No Server Data**: No data is sent to our servers
 - **Tab-Specific**: Conversations are stored per tab and cleared when tabs are closed
 - **Direct API**: All communication goes directly to xAI's secure API
+- **Web Search**: When enabled, search queries are sent to Ollama's web search API (ollama.com) to fetch results; chat content still only goes to xAI
 - **File Attachments**: Non-image files (PDF, text, code, etc.) are uploaded directly to xAI's Files API so Grok can read them, and automatically expire from xAI's servers after 24 hours
 
 ## 📋 Requirements
 
 - **xAI API key** (get one at [https://x.ai](https://x.ai))
+- **Ollama API key** (optional — for web search; get one at [https://ollama.com/settings/keys](https://ollama.com/settings/keys))
 - **Chrome browser**
 - **Internet connection**
 
@@ -92,7 +95,7 @@ npm install
 
 The extension has three main parts:
 - **Sidepanel** (`sidepanel.js`) — the chat UI you interact with
-- **Background worker** (`background.js`) — relays messages, captures screenshots, fetches URLs, opens the side panel per tab
+- **Background worker** (`background.js`) — relays messages, captures screenshots, fetches URLs, runs web searches, opens the side panel per tab
 - **Content script** (`content.js`) — injected into web pages to extract text content
 
 Messages flow: `Sidepanel ↔ Background ↔ Content Script ↔ Web Page`
