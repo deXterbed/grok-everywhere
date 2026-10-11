@@ -9,6 +9,9 @@ All notable changes to this project will be documented in this file.
 - **Grok 4.6**: `grok-4.6` is available in the text and vision model dropdowns. The startup default is unchanged (Grok 4.3).
 - **Grok 4.7**: `grok-4.7` is available in the text and vision model dropdowns. The startup default is unchanged (Grok 4.3).
 
+### Removed
+- **Grok 4.20 Multi-Agent**: `grok-4.20-multi-agent-0309` was removed from the text and vision dropdowns. xAI rejects it on `/v1/chat/completions` (`Multi Agent requests are not allowed on chat completions`). A saved setting that still names it falls back to Grok 4.3. Supporting it requires the Responses API.
+
 ---
 
 ## [1.8.0] - 2026-09-09

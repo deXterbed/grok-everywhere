@@ -288,11 +288,6 @@ document.addEventListener("DOMContentLoaded", async () => {
       description: "Low latency, non-thinking",
     },
     {
-      id: "grok-4.20-multi-agent-0309",
-      label: "Grok 4.20 Multi-Agent",
-      description: "Multi-agent research, 2M context",
-    },
-    {
       id: "grok-build-0.1",
       label: "Grok Build 0.1",
       description: "Fast coding specialist (vision-capable)",
@@ -329,11 +324,6 @@ document.addEventListener("DOMContentLoaded", async () => {
       id: "grok-4.20-0309-non-reasoning",
       label: "Grok 4.20 (fast)",
       description: "Image input, low latency",
-    },
-    {
-      id: "grok-4.20-multi-agent-0309",
-      label: "Grok 4.20 Multi-Agent",
-      description: "Image input, multi-agent research",
     },
     {
       id: "grok-build-0.1",
@@ -592,8 +582,15 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
   const savedTheme = result.theme || "dark";
   document.documentElement.dataset.theme = savedTheme;
-  if (result.textModel) textModel = result.textModel;
-  if (result.visionModel) visionModel = result.visionModel;
+  // Chat completions rejects this id with HTTP 400. A saved pick must not be sent.
+  const removedModel = "grok-4.20-multi-agent-0309";
+  if (result.textModel && result.textModel !== removedModel) textModel = result.textModel;
+  if (result.visionModel && result.visionModel !== removedModel) {
+    visionModel = result.visionModel;
+  }
+  if (result.textModel === removedModel || result.visionModel === removedModel) {
+    chrome.storage.local.set({ textModel, visionModel });
+  }
 
   // Populate model selects with saved values
   populateModelSelect(modelSelectEl, TEXT_MODELS, textModel);

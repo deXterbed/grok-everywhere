@@ -50,7 +50,6 @@ export function modelSupportsVision(modelId) {
     "grok-4.3",
     "grok-4.20-0309-reasoning",
     "grok-4.20-0309-non-reasoning",
-    "grok-4.20-multi-agent-0309",
     "grok-build-0.1",
     "grok-2-vision",
     "grok-vision-beta",
