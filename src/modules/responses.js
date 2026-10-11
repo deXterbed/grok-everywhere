@@ -10,7 +10,7 @@ const SYSTEM_INSTRUCTIONS =
 
 import { parseHttpError } from "./api.js";
 
-async function callResponsesApi(apiKey, input) {
+async function callResponsesApi(apiKey, input, oauth) {
   const response = await fetch("https://api.x.ai/v1/responses", {
     method: "POST",
     headers: {
@@ -31,7 +31,7 @@ async function callResponsesApi(apiKey, input) {
         response.status,
         errorData,
         `API request failed with status ${response.status}`,
-        apiKey,
+        { oauth },
       ),
     );
   }
@@ -82,6 +82,7 @@ async function readResponsesStream(response, streamingMessageId, onStream) {
 export async function fetchFileResponse({
   streamingMessageId,
   apiKey,
+  oauth = false,
   conversationHistory,
   onStream,
 }) {
@@ -110,6 +111,6 @@ export async function fetchFileResponse({
     }
   });
 
-  const response = await callResponsesApi(apiKey, input);
+  const response = await callResponsesApi(apiKey, input, oauth);
   return readResponsesStream(response, streamingMessageId, onStream);
 }

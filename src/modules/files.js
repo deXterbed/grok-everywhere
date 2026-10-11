@@ -3,7 +3,7 @@ export const MAX_FILE_SIZE = 48 * 1024 * 1024;
 
 import { parseHttpError } from "./api.js";
 
-export async function uploadFile(apiKey, file) {
+export async function uploadFile(apiKey, file, { oauth = false } = {}) {
   const formData = new FormData();
   formData.append("purpose", "assistants");
   formData.append("expires_after", "86400"); // 24h — long enough to survive a multi-turn conversation
@@ -24,7 +24,7 @@ export async function uploadFile(apiKey, file) {
         response.status,
         errorData,
         `File upload failed with status ${response.status}`,
-        apiKey,
+        { oauth },
       ),
     );
   }

@@ -13,6 +13,7 @@ src/                        # Source files
   sidepanel.js              # Side panel logic (entry point)
   modules/
     api.js                  # xAI API client, streaming, fetch_url + web_search tools
+    auth.js                 # Optional SuperGrok device-code OAuth; API key stays the default
     content.js              # Screenshot & page content extraction helpers
     context.js              # Context mode cycling ("none" / "content" / "screenshot")
     markdown.js             # Markdown → HTML renderer (with KaTeX math)
@@ -84,6 +85,15 @@ Both attachment kinds flow end-to-end alongside `images`: `sidepanel.js` → `ap
 - File upload endpoint: `https://api.x.ai/v1/files` via `modules/files.js`.
 - Web search endpoint (only when enabled in Settings): `https://ollama.com/api/web_search` — called from `background.js` with the user's Ollama API key, returned to the model as `web_search` tool results. See Web Search (Ollama) below.
 
+### SuperGrok OAuth (`modules/auth.js`)
+
+Optional device-code login beside the API key. `authMode` is `api_key` (default) or `oauth`. The access token is sent as `Authorization: Bearer` on the existing `api.x.ai` calls. `getBearerToken()` returns `{ token, oauth }` for the credential it actually handed back.
+
+- **Refresh fallback is auth-failure only.** `isAuthRefreshFailure` is true for `invalid_grant` / `invalid_token` / `invalid_client`, or HTTP 401/403. Only then does a saved `xaiApiKey` replace the session (`authMode: "api_key"`, `xaiOAuth` removed). Network errors, 408, 429, and 5xx throw and leave `authMode` and `xaiOAuth` alone, so Sign out stays available. Do not catch every refresh error and downgrade.
+- **One refresh at a time.** `ensureFreshSession` assigns `refreshInFlight` before its first await. A file upload and a send that overlap on an expired token must not POST twice — a rotated refresh token makes the second call `invalid_grant`, which the rule above would treat as a real logout.
+- **403 entitlement copy is keyed off `oauth`, not token shape.** `parseHttpError(status, body, fallback, { oauth })` returns `OAUTH_403_MESSAGE` only when the caller says this request used an OAuth access token. An opaque token is still OAuth. An API key that happens to contain two dots is not. Thread the flag from `getBearerToken().oauth` through `fetchStreamingReply`, `uploadFile`, and `fetchFileResponse`. Ollama's `web_search` path does not use `parseHttpError`.
+- **Host permissions.** `https://auth.x.ai/*` and `https://accounts.x.ai/*` are covered by `<all_urls>`. `privacy.md` still names those hosts because the extension contacts them. Device-code only — the public client is registered to `127.0.0.1:56121`, which this extension cannot bind.
+
 **`fetch_url` tool gating — don't reuse `supportsVision` for this.** `grok-4.3` is xAI's flagship model and is the *default* for both `textModel` and `visionModel` (`TEXT_MODELS`/`VISION_MODELS` in `sidepanel.js`), so `modelSupportsVision(model)` returns `true` even in a plain-text conversation with zero images attached. `fetchStreamingReply` (`api.js`) previously gated the `fetch_url` tool on `supportsVision`, which silently stripped the tool from every request on the default model — the model would then respond with a canned "I can't browse the web" instead of fetching anything, with no error surfaced anywhere. Tool/URL-fetch availability must be gated on `hasImagesThisTurn` (whether `images` is actually non-empty *this turn*), not on whether the selected model is merely vision-*capable*. `supportsVision` stays correct for the image-content-type decisions (whether to render `image_url` parts) — the bug was specifically conflating "model can do vision" with "this request is a vision request."
 
 Separately: forcing `tool_choice` to a named function (`{ type: "function", function: { name: "fetch_url" } }`) to make the model call fetch_url was tried and **did not reliably work** — the model streamed acknowledgment text ("I'll read that... one moment") without ever emitting a `tool_calls` delta, silently doing nothing. Don't rely on forced `tool_choice` for this; instead `fetchStreamingReply` now deterministically extracts a URL from the user's message client-side (`extractFirstUrl()`) and fetches it via `fetchUrl()` *before* calling the model at all, injecting the content as context. The `fetch_url` tool is still offered (`tool_choice: "auto"`) as a fallback for URLs the model encounters indirectly (e.g. referenced from earlier turns), but the primary "read this URL" case no longer depends on the model choosing to call anything.
@@ -96,7 +106,7 @@ Optional `web_search` tool backed by Ollama's hosted web search API (separate pr
 - **Date injection**: the system prompt always states today's date (client-side `new Date()`). Models hallucinate the date when asked directly instead of calling `web_search` — providing it removes the need to search for that case entirely.
 - **Networking rail**: sidepanel (`api.js` `webSearch()`) → `chrome.runtime.sendMessage({action: "webSearch"})` → `background.js` POSTs to `https://ollama.com/api/web_search` with the key passed per-request (the worker stays stateless). No manifest change was needed — `host_permissions` already includes `<all_urls>`, which covers ollama.com.
 - **Tool loop**: `fetchStreamingReply` runs a bounded tool loop (`MAX_TOOL_ROUNDS = 4`) — each round either returns the answer or executes the requested tool(s) (`fetch_url` or `web_search`), appends the results, and calls again. This replaced the old fixed two-call flow (whose second call passed `tools: []`), enabling chains like search → fetch a result link. `readStream` accumulates tool calls per stream index, so parallel calls in one response (e.g. two `web_search` calls for a comparison question — this used to concatenate their args into one corrupt JSON blob and crash the turn) are all executed and returned as separate tool results; a malformed single call is reported back as the tool result instead of throwing.
-- **Result size**: snippets capped at 1000 chars each / 8000 total (`formatSearchResults`) — Ollama warns search results can be thousands of tokens, and tool input eats the model's reply budget. `scripts/check-websearch.mjs` (`npm test`) asserts the caps.
+- **Result size**: snippets capped at 1000 chars each / 8000 total (`formatSearchResults`) — Ollama warns search results can be thousands of tokens, and tool input eats the model's reply budget. `scripts/check-websearch.mjs` (`npm test`) asserts the caps. `scripts/check-auth.mjs` asserts the OAuth 403 mapping and refresh classification.
 - **Settings**: `ollamaApiKey` (password input; saving empty clears it — together with the toggle, that's the off switch) and `webSearchEnabled` (checkbox) in `chrome.storage.local`.
 
 ### Conversation Storage
@@ -179,7 +189,7 @@ Version lives in **two** files that must be kept in sync: `package.json` and `sr
 | `npm run build` | Production build |
 | `npm run zip` | Package dist/ for Chrome Web Store |
 | `npm run clean` | Delete dist/ |
-| `npm test` | Self-check for web search result formatting |
+| `npm test` | Self-check for web search formatting and OAuth error mapping |
 
 ## Key Dependencies
 

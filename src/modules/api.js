@@ -1,4 +1,4 @@
-import { isOAuthToken, OAUTH_403_MESSAGE } from "./auth.js";
+import { OAUTH_403_MESSAGE } from "./auth.js";
 
 const FETCH_URL_TOOL = {
   type: "function",
@@ -66,12 +66,12 @@ export function parseApiError(errorData, fallback) {
   }
 }
 
-export function parseHttpError(status, errorData, fallback, token) {
-  if (status === 403 && isOAuthToken(token)) return OAUTH_403_MESSAGE;
+export function parseHttpError(status, errorData, fallback, options = {}) {
+  if (status === 403 && options?.oauth) return OAUTH_403_MESSAGE;
   return parseApiError(errorData, fallback);
 }
 
-async function callApi(apiKey, model, messages, tools, toolChoice = "auto") {
+async function callApi(apiKey, model, messages, tools, toolChoice = "auto", oauth = false) {
   const body = {
     model,
     messages,
@@ -98,7 +98,7 @@ async function callApi(apiKey, model, messages, tools, toolChoice = "auto") {
         response.status,
         errorData,
         `API request failed with status ${response.status}`,
-        apiKey,
+        { oauth },
       ),
     );
   }
@@ -214,6 +214,7 @@ export async function fetchStreamingReply({
   apiKey,
   ollamaApiKey,
   webSearchEnabled,
+  oauth = false,
   conversationHistory,
   onStream,
 }) {
@@ -334,7 +335,7 @@ export async function fetchStreamingReply({
   // Capped to bound cost and runaway loops.
   const MAX_TOOL_ROUNDS = 4;
   for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
-    const response = await callApi(apiKey, model, messages, tools);
+    const response = await callApi(apiKey, model, messages, tools, "auto", oauth);
     const { content, toolCalls } = await readStream(
       response,
       streamingMessageId,

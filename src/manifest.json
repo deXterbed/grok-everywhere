@@ -53,8 +53,6 @@
   },
   "host_permissions": [
     "https://api.x.ai/*",
-    "https://auth.x.ai/*",
-    "https://accounts.x.ai/*",
     "<all_urls>"
   ]
 }

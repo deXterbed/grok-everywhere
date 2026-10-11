@@ -23,10 +23,22 @@ const MIN_INTERVAL_MS = 1000;
 const SLOW_DOWN_MS = 5000;
 const DEFAULT_EXPIRES_MS = 5 * 60 * 1000;
 
-let loginAbort = null;
+const AUTH_REFRESH_ERROR_CODES = new Set([
+  "invalid_grant",
+  "invalid_token",
+  "invalid_client",
+]);
 
-export function isOAuthToken(token) {
-  return typeof token === "string" && token.split(".").length === 3;
+let loginAbort = null;
+let refreshInFlight = null;
+
+// True only when the refresh token itself was rejected. Network failures,
+// 408/429/5xx, and anything else must not log the user out of SuperGrok.
+export function isAuthRefreshFailure(error) {
+  if (!error || error.transient) return false;
+  if (error.name === "TypeError" || error.name === "AbortError") return false;
+  if (AUTH_REFRESH_ERROR_CODES.has(error.code)) return true;
+  return error.status === 401 || error.status === 403;
 }
 
 export function cancelDeviceLogin() {
@@ -139,53 +151,140 @@ async function pollDeviceCodeToken(device, signal) {
   throw new Error("SuperGrok authorization timed out");
 }
 
+function refreshError(message, status, code, transient) {
+  const error = new Error(message);
+  error.status = status;
+  error.code = code || "";
+  error.transient = Boolean(transient);
+  return error;
+}
+
 async function refreshAccessToken(refreshToken) {
-  const response = await fetch(TOKEN_URL, {
-    method: "POST",
-    headers: FORM_HEADERS,
-    body: new URLSearchParams({
-      grant_type: "refresh_token",
-      refresh_token: refreshToken,
-      client_id: CLIENT_ID,
-    }),
-  });
-  if (!response.ok) {
-    if (response.status === 403) throw new Error(OAUTH_403_MESSAGE);
-    throw new Error(
-      `xAI token refresh failed (${response.status}): ${await readError(response)}`,
+  let response;
+  try {
+    response = await fetch(TOKEN_URL, {
+      method: "POST",
+      headers: FORM_HEADERS,
+      body: new URLSearchParams({
+        grant_type: "refresh_token",
+        refresh_token: refreshToken,
+        client_id: CLIENT_ID,
+      }),
+    });
+  } catch (error) {
+    throw refreshError(
+      error?.message || "xAI token refresh failed",
+      0,
+      "",
+      true,
     );
+  }
+  if (!response.ok) {
+    const text = await response.text().catch(() => "");
+    let body = {};
+    try {
+      body = JSON.parse(text);
+    } catch {
+      body = {};
+    }
+    const code = typeof body.error === "string" ? body.error : "";
+    const transient =
+      response.status === 408 || response.status === 429 || response.status >= 500;
+    const detail = body.error_description || code || text;
+    const message =
+      response.status === 403
+        ? OAUTH_403_MESSAGE
+        : `xAI token refresh failed (${response.status}): ${detail}`;
+    throw refreshError(message, response.status, code, transient);
   }
   return response.json();
 }
 
-async function ensureFreshSession(session) {
-  const expiring =
-    !session.expiresAt || session.expiresAt - Date.now() <= REFRESH_SKEW_MS;
-  if (!expiring) return session;
-  if (!session.refreshToken) {
-    throw new Error("SuperGrok session expired. Sign in again, or enter an API key.");
-  }
-  const next = toSession(await refreshAccessToken(session.refreshToken), session.refreshToken);
+function sessionIsFresh(session) {
+  return Boolean(
+    session?.accessToken &&
+      session.expiresAt &&
+      session.expiresAt - Date.now() > REFRESH_SKEW_MS,
+  );
+}
+
+async function refreshAndStore(session) {
+  const next = toSession(
+    await refreshAccessToken(session.refreshToken),
+    session.refreshToken,
+  );
   await chrome.storage.local.set({ xaiOAuth: next });
   return next;
+}
+
+async function ensureFreshSession(session) {
+  if (sessionIsFresh(session)) return session;
+  if (!session?.refreshToken && !session?.accessToken) {
+    throw refreshError(
+      "SuperGrok session expired. Sign in again, or enter an API key.",
+      401,
+      "invalid_grant",
+      false,
+    );
+  }
+  // Assign before the first await so overlapping upload + send share one POST.
+  // The body re-reads storage so a caller that still holds the pre-refresh
+  // session does not send the rotated refresh token a second time.
+  if (!refreshInFlight) {
+    const pending = (async () => {
+      const stored = await chrome.storage.local.get("xaiOAuth");
+      const current = stored.xaiOAuth?.refreshToken ? stored.xaiOAuth : session;
+      if (sessionIsFresh(current)) return current;
+      if (!current?.refreshToken) {
+        throw refreshError(
+          "SuperGrok session expired. Sign in again, or enter an API key.",
+          401,
+          "invalid_grant",
+          false,
+        );
+      }
+      return refreshAndStore(current);
+    })().finally(() => {
+      if (refreshInFlight === pending) refreshInFlight = null;
+    });
+    refreshInFlight = pending;
+  }
+  return refreshInFlight;
+}
+
+async function fallBackToApiKey() {
+  await chrome.storage.local.remove("xaiOAuth");
+  await chrome.storage.local.set({ authMode: AUTH_MODE_API_KEY });
 }
 
 export async function getBearerToken() {
   const data = await chrome.storage.local.get(["authMode", "xaiOAuth", "xaiApiKey"]);
   const mode = data.authMode || AUTH_MODE_API_KEY;
-  if (mode === AUTH_MODE_OAUTH && data.xaiOAuth?.accessToken) {
+  if (mode === AUTH_MODE_OAUTH) {
+    if (!data.xaiOAuth?.accessToken) {
+      if (data.xaiApiKey) {
+        await fallBackToApiKey();
+        return { token: data.xaiApiKey, oauth: false };
+      }
+      throw refreshError(
+        "SuperGrok session expired. Sign in again, or enter an API key.",
+        401,
+        "invalid_grant",
+        false,
+      );
+    }
     try {
       const session = await ensureFreshSession(data.xaiOAuth);
-      return session.accessToken;
+      return { token: session.accessToken, oauth: true };
     } catch (error) {
-      if (data.xaiApiKey) {
-        await chrome.storage.local.set({ authMode: AUTH_MODE_API_KEY });
-        return data.xaiApiKey;
+      if (isAuthRefreshFailure(error) && data.xaiApiKey) {
+        await fallBackToApiKey();
+        return { token: data.xaiApiKey, oauth: false };
       }
       throw error;
     }
   }
-  return data.xaiApiKey || null;
+  return { token: data.xaiApiKey || null, oauth: false };
 }
 
 export async function startDeviceLogin(onDevice) {

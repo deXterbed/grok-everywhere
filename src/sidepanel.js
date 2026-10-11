@@ -193,11 +193,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     pendingFiles.push(entry);
     renderAttachmentPreview();
 
-    entry.uploadPromise = getBearerToken()
-      .then((token) => {
-        if (!token) throw new Error("Sign in with SuperGrok or enter an API key");
-        apiKey = token;
-        return uploadFile(token, file);
+    entry.uploadPromise = refreshActiveBearer()
+      .then((bearer) => {
+        if (!bearer.token) {
+          throw new Error("Sign in with SuperGrok or enter an API key");
+        }
+        applyAuthenticatedUi();
+        return uploadFile(bearer.token, file, { oauth: bearer.oauth });
       })
       .then((result) => {
         entry.status = "uploaded";
@@ -489,7 +491,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   function updateOauthSettingsUi() {
-    const signedIn = authMode === AUTH_MODE_OAUTH && Boolean(apiKey);
+    const signedIn = authMode === AUTH_MODE_OAUTH;
     document.getElementById("oauth-status").textContent = signedIn
       ? "Signed in"
       : "Optional device-code sign-in";
@@ -508,7 +510,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       saveApiKeyButton.classList.remove("active");
     }
     updateOauthSettingsUi();
-    if (apiKey) {
+    if (apiKey || authMode === AUTH_MODE_OAUTH) {
       messageInput.disabled = false;
       showPageContext();
     } else {
@@ -521,11 +523,12 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   async function refreshActiveBearer() {
-    apiKey = await getBearerToken();
+    const bearer = await getBearerToken();
+    apiKey = bearer.token;
     const stored = await chrome.storage.local.get(["authMode", "xaiApiKey"]);
     authMode = stored.authMode || AUTH_MODE_API_KEY;
     storedApiKey = stored.xaiApiKey || null;
-    return apiKey;
+    return bearer;
   }
 
   async function runDeviceLogin() {
@@ -548,8 +551,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (error?.name !== "AbortError") {
         addMessage(`[!] ${error.message}`, false);
       }
-      await refreshActiveBearer().catch(() => {
-        apiKey = storedApiKey;
+      await refreshActiveBearer().catch((refreshError) => {
+        addMessage(`[!] ${refreshError.message}`, false);
       });
       applyAuthenticatedUi();
     } finally {
@@ -571,11 +574,11 @@ document.addEventListener("DOMContentLoaded", async () => {
   authMode = result.authMode || AUTH_MODE_API_KEY;
   ollamaApiKey = result.ollamaApiKey || null;
   webSearchEnabled = Boolean(result.webSearchEnabled);
+  let startupAuthError = null;
   try {
-    apiKey = await getBearerToken();
-  } catch {
-    apiKey = storedApiKey;
-    authMode = AUTH_MODE_API_KEY;
+    await refreshActiveBearer();
+  } catch (error) {
+    startupAuthError = error;
   }
   const savedTheme = result.theme || "dark";
   document.documentElement.dataset.theme = savedTheme;
@@ -587,6 +590,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   populateModelSelect(visionSelectEl, VISION_MODELS, visionModel);
 
   applyAuthenticatedUi();
+  if (startupAuthError) {
+    addMessage(`[!] ${startupAuthError.message}`, false);
+  }
 
   // Handle API key input and save
   apiKeyInput.addEventListener("focus", () => {
@@ -865,8 +871,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     ) {
       return;
     }
+    let oauth = false;
     try {
-      apiKey = await getBearerToken();
+      const bearer = await refreshActiveBearer();
+      oauth = bearer.oauth;
     } catch (error) {
       addMessage(`[!] ${error.message}`, false);
       return;
@@ -998,7 +1006,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           : getTextModelLabel();
       showTypingIndicator(model);
 
-      await sendMessage(message, images, contentToSend, filesToSend);
+      await sendMessage(message, images, contentToSend, filesToSend, oauth);
     } catch (error) {
       // If sending fails, restore the attachments so the user doesn't lose them
       pendingAttachments = attachmentsToSend;
@@ -1223,7 +1231,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   });
 
-  async function sendMessage(message, images, content, files) {
+  async function sendMessage(message, images, content, files, oauth) {
     // Files (any file attached this turn, or in earlier turns of this
     // conversation) require xAI's Responses API — it's the only endpoint
     // that supports input_file / attachment_search. See CLAUDE.md.
@@ -1280,6 +1288,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         ? await fetchFileResponse({
             streamingMessageId,
             apiKey,
+            oauth,
             conversationHistory,
             onStream: updateStreamingContent,
           })
@@ -1292,6 +1301,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             apiKey,
             ollamaApiKey,
             webSearchEnabled,
+            oauth,
             conversationHistory,
             onStream: updateStreamingContent,
           });
