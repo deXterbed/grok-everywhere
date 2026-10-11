@@ -9,7 +9,7 @@ A powerful Chrome extension that brings xAI's Grok AI assistant directly into yo
 ## ✨ Features
 
 - **🤖 AI-Powered Conversations**: Chat with Grok 4.3 and other selectable Grok text/vision models directly in your browser
-- **🔀 Model Selection**: Pick your preferred text and vision model in Settings (Grok 4.3, Grok 4.6, Grok 4.5, Grok 4.20 Reasoning, Grok 4.20 fast, Grok 4.20 Multi-Agent, Grok Build 0.1)
+- **🔀 Model Selection**: Pick your preferred text and vision model in Settings (Grok 4.3, Grok 4.7, Grok 4.6, Grok 4.5, Grok 4.20 Reasoning, Grok 4.20 fast, Grok 4.20 Multi-Agent, Grok Build 0.1)
 - **📄 Page Content Analysis**: Ask questions about any webpage content
 - **📸 Screenshot Analysis**: Take screenshots and get AI-powered insights
 - **📎 Image & File Attachments**: Attach images (upload or paste from clipboard) for visual questions, or attach documents (PDF, text, code, CSV, JSON) for Grok to read and answer questions about

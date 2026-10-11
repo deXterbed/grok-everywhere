@@ -44,6 +44,7 @@ function extractFirstUrl(text) {
 export function modelSupportsVision(modelId) {
   // Vision-capable Grok models — checked against xAI docs
   const visionModels = [
+    "grok-4.7",
     "grok-4.6",
     "grok-4.5",
     "grok-4.3",

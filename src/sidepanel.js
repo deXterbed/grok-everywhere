@@ -255,12 +255,17 @@ document.addEventListener("DOMContentLoaded", async () => {
   let isUserAtBottom = true; // Track if user is at bottom of chat
 
   // ── Model definitions ──────────────────────────────────────────────
-  // Based on xAI docs — active models as of September 2026
+  // Based on xAI docs — active models as of October 2026
   const TEXT_MODELS = [
+    {
+      id: "grok-4.7",
+      label: "Grok 4.7",
+      description: "Current flagship — coding, agents, vision",
+    },
     {
       id: "grok-4.6",
       label: "Grok 4.6",
-      description: "Current flagship — coding, agents, vision",
+      description: "Coding, agents, vision",
     },
     {
       id: "grok-4.5",
@@ -296,9 +301,14 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   const VISION_MODELS = [
     {
+      id: "grok-4.7",
+      label: "Grok 4.7",
+      description: "Current flagship — image input",
+    },
+    {
       id: "grok-4.6",
       label: "Grok 4.6",
-      description: "Current flagship — image input",
+      description: "Image input",
     },
     {
       id: "grok-4.5",
