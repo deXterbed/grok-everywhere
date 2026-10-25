@@ -120,6 +120,10 @@ User messages are rendered via `textSpan.textContent = content` in `addMessage()
 
 `appendAssistantFooter()` in `sidepanel.js` renders the "Using \<model\>" label and a copy button together under every assistant reply (shared by `addMessage()` and `updateStreamingMessage()` — previously two near-duplicated inline-styled blocks). `createCopyButton()` copies the raw reply string (not rendered HTML/markdown) via `navigator.clipboard.writeText()`. **Always attach a `.catch()` here** — a rejected clipboard write (e.g. focus/permission issues in the side panel context) fails silently with no visible error otherwise, since there's nothing else in the click handler to surface it. On success the button icon swaps to a checkmark for ~1.2s (`.message-copy-button.copied`) — a color/opacity change alone was tried first and was too subtle to register as feedback.
 
+### Input Textarea Auto-Resize
+
+`#message-input` uses native autosizing via `field-sizing: content` (Chrome 123+), guarded by `@supports` in `sidepanel.css`. `autoResizeTextarea()` in `sidepanel.js` bails out when `CSS.supports("field-sizing: content")` — its per-keystroke `height`/`scrollHeight` writes forced synchronous layouts and made fast typing appear in bursts. Don't remove that guard or write an inline height with `field-sizing` active.
+
 ### Send Button Loading State
 
 `showLoading()` (`ui.js`) adds a `.loading` class to the send button on every send — CSS swaps the arrow for a spinner. `hideTypingIndicator()` is the single cleanup point for all loading/typing state on **every** path (success, error, extraction failure): it must reset `disabled` AND remove `.loading` from the send button and message input, otherwise the spinner spins forever after the reply. `hideLoading()` deliberately clears only the input-container overlay — keep cleanup in `hideTypingIndicator`, don't split it again.

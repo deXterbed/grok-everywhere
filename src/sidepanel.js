@@ -344,8 +344,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     isUserAtBottom = true;
   }
 
-  // Auto-resize textarea to match content, like standard chat UIs
+  // Auto-resize textarea to match content, like standard chat UIs.
+  // With field-sizing: content (Chrome 123+, see sidepanel.css) the browser
+  // does this natively; forcing the height here would also fight the CSS
+  // via inline styles, so bail out.
+  const hasFieldSizing = CSS.supports("field-sizing: content");
   function autoResizeTextarea() {
+    if (hasFieldSizing) return;
     messageInput.style.height = "0";
     const scrollH = messageInput.scrollHeight;
     const newHeight = Math.min(scrollH, 160);
