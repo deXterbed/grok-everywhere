@@ -124,6 +124,10 @@ User messages are rendered via `textSpan.textContent = content` in `addMessage()
 
 `#message-input` uses native autosizing via `field-sizing: content` (Chrome 123+), guarded by `@supports` in `sidepanel.css`. `autoResizeTextarea()` in `sidepanel.js` bails out when `CSS.supports("field-sizing: content")` — its per-keystroke `height`/`scrollHeight` writes forced synchronous layouts and made fast typing appear in bursts. Don't remove that guard or write an inline height with `field-sizing` active.
 
+### Chat Auto-Scroll
+
+While a reply streams, `updateStreamingContent()` → `scrollToBottomIfNeeded()` follows the bottom only if the user hasn't scrolled up. The gate is `isUserAtBottom` plus a live `isAtBottom()` check, because the cached flag can be a frame stale when a delta lands mid-scroll. The scroll handler treats any decrease in `scrollTop` as a user scroll-up regardless of `isAtBottom()`'s 50px threshold — trackpad scrolls smaller than that otherwise stayed "at bottom" and every streamed chunk yanked the view back — and an upward `wheel` disables follow immediately, even before the content is tall enough to scroll. Reaching the bottom re-enables it; sending a message force-scrolls via `scrollToBottom()`, which also syncs `lastScrollTop` so programmatic scrolls aren't mistaken for user input.
+
 ### Send Button Loading State
 
 `showLoading()` (`ui.js`) adds a `.loading` class to the send button on every send — CSS swaps the arrow for a spinner. `hideTypingIndicator()` is the single cleanup point for all loading/typing state on **every** path (success, error, extraction failure): it must reset `disabled` AND remove `.loading` from the send button and message input, otherwise the spinner spins forever after the reply. `hideLoading()` deliberately clears only the input-container overlay — keep cleanup in `hideTypingIndicator`, don't split it again.

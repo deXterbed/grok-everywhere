@@ -236,6 +236,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
 
   let isUserAtBottom = true; // Track if user is at bottom of chat
+  let lastScrollTop = 0; // Previous scroll position, to detect upward scrolls
 
   // ── Model definitions ──────────────────────────────────────────────
   // Based on xAI docs — active models as of June 2026
@@ -333,14 +334,21 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // Function to scroll to bottom only if user is at bottom
   function scrollToBottomIfNeeded() {
-    if (isUserAtBottom) {
+    // Re-check the live position instead of trusting only the cached flag:
+    // the flag can be a frame stale when a token delta lands mid-scroll.
+    if (isUserAtBottom && isAtBottom()) {
       chatContainer.scrollTop = chatContainer.scrollHeight;
+      // Keep lastScrollTop in sync with the programmatic scroll, otherwise
+      // the upward-scroll detector compares against a stale (lower) value
+      // and misses a real upward scroll that stays above the old mark.
+      lastScrollTop = chatContainer.scrollTop;
     }
   }
 
   // Function to force scroll to bottom (for new messages)
   function scrollToBottom() {
     chatContainer.scrollTop = chatContainer.scrollHeight;
+    lastScrollTop = chatContainer.scrollTop;
     isUserAtBottom = true;
   }
 
@@ -424,10 +432,30 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   }
 
-  // Track whether the user is at the bottom of the chat
+  // Track whether the user is at the bottom of the chat. Auto-scroll only
+  // ever moves the view down, so any decrease in scrollTop is the user
+  // scrolling up — respect that even when still inside the isAtBottom
+  // threshold, otherwise a small trackpad scroll gets pulled back down by
+  // the next streamed chunk.
   chatContainer.addEventListener("scroll", () => {
-    isUserAtBottom = isAtBottom();
+    const scrollTop = chatContainer.scrollTop;
+    if (scrollTop < lastScrollTop) {
+      isUserAtBottom = false;
+    } else if (isAtBottom()) {
+      isUserAtBottom = true;
+    }
+    lastScrollTop = scrollTop;
   });
+
+  // Upward wheel gestures count immediately, even before the content is tall
+  // enough to actually scroll.
+  chatContainer.addEventListener(
+    "wheel",
+    (e) => {
+      if (e.deltaY < 0) isUserAtBottom = false;
+    },
+    { passive: true },
+  );
 
   // Load theme, API key, and model settings
   const result = await chrome.storage.local.get([
