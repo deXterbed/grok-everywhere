@@ -253,6 +253,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
 
   let isUserAtBottom = true; // Track if user is at bottom of chat
+  let lastScrollTop = 0; // Previous scroll position, to detect upward scrolls
 
   // ── Model definitions ──────────────────────────────────────────────
   // Based on xAI docs — active models as of October 2026
@@ -381,19 +382,31 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // Function to scroll to bottom only if user is at bottom
   function scrollToBottomIfNeeded() {
-    if (isUserAtBottom) {
+    // Re-check the live position instead of trusting only the cached flag:
+    // the flag can be a frame stale when a token delta lands mid-scroll.
+    if (isUserAtBottom && isAtBottom()) {
       chatContainer.scrollTop = chatContainer.scrollHeight;
+      // Keep lastScrollTop in sync with the programmatic scroll, otherwise
+      // the upward-scroll detector compares against a stale (lower) value
+      // and misses a real upward scroll that stays above the old mark.
+      lastScrollTop = chatContainer.scrollTop;
     }
   }
 
   // Function to force scroll to bottom (for new messages)
   function scrollToBottom() {
     chatContainer.scrollTop = chatContainer.scrollHeight;
+    lastScrollTop = chatContainer.scrollTop;
     isUserAtBottom = true;
   }
 
-  // Auto-resize textarea to match content, like standard chat UIs
+  // Auto-resize textarea to match content, like standard chat UIs.
+  // With field-sizing: content (Chrome 123+, see sidepanel.css) the browser
+  // does this natively; forcing the height here would also fight the CSS
+  // via inline styles, so bail out.
+  const hasFieldSizing = CSS.supports("field-sizing: content");
   function autoResizeTextarea() {
+    if (hasFieldSizing) return;
     messageInput.style.height = "0";
     const scrollH = messageInput.scrollHeight;
     const newHeight = Math.min(scrollH, 160);
@@ -467,10 +480,30 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   }
 
-  // Track whether the user is at the bottom of the chat
+  // Track whether the user is at the bottom of the chat. Auto-scroll only
+  // ever moves the view down, so any decrease in scrollTop is the user
+  // scrolling up — respect that even when still inside the isAtBottom
+  // threshold, otherwise a small trackpad scroll gets pulled back down by
+  // the next streamed chunk.
   chatContainer.addEventListener("scroll", () => {
-    isUserAtBottom = isAtBottom();
+    const scrollTop = chatContainer.scrollTop;
+    if (scrollTop < lastScrollTop) {
+      isUserAtBottom = false;
+    } else if (isAtBottom()) {
+      isUserAtBottom = true;
+    }
+    lastScrollTop = scrollTop;
   });
+
+  // Upward wheel gestures count immediately, even before the content is tall
+  // enough to actually scroll.
+  chatContainer.addEventListener(
+    "wheel",
+    (e) => {
+      if (e.deltaY < 0) isUserAtBottom = false;
+    },
+    { passive: true },
+  );
 
   function setOauthPending(device) {
     const banner = document.getElementById("oauth-device-banner");

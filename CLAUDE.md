@@ -98,6 +98,8 @@ Optional device-code login beside the API key. `authMode` is `api_key` (default)
 
 Separately: forcing `tool_choice` to a named function (`{ type: "function", function: { name: "fetch_url" } }`) to make the model call fetch_url was tried and **did not reliably work** — the model streamed acknowledgment text ("I'll read that... one moment") without ever emitting a `tool_calls` delta, silently doing nothing. Don't rely on forced `tool_choice` for this; instead `fetchStreamingReply` now deterministically extracts a URL from the user's message client-side (`extractFirstUrl()`) and fetches it via `fetchUrl()` *before* calling the model at all, injecting the content as context. The `fetch_url` tool is still offered (`tool_choice: "auto"`) as a fallback for URLs the model encounters indirectly (e.g. referenced from earlier turns), but the primary "read this URL" case no longer depends on the model choosing to call anything.
 
+**The injected page content is context, not the scope of the answer.** Left to itself, the model treats the extract as a closed corpus and answers "the page/blog doesn't say whether X" instead of searching — e.g. asked whether Ollama is profitable with a blog post attached, it listed the post's funding bullets and stopped. `fetchStreamingReply` therefore states the rule in two places: the system prompt (`contentRule`, built once from `searchOn`) and the injected page-content user message itself, which also notes the extract is **truncated** (see Content Extraction — 8000 chars), so absence there is not evidence. With `searchOn` the rule is "must call `web_search` and answer from results, never substitute 'the page doesn't say' for an answer"; without it, "answer from your own knowledge" instead (there is no search tool to call). `WEB_SEARCH_TOOL`'s description names this case too. When search is off or unconfigured this is prompt-only behavior with no tool fallback — don't expect a search without a key.
+
 ### Web Search (Ollama)
 
 Optional `web_search` tool backed by Ollama's hosted web search API (separate provider from xAI; free key at ollama.com/settings/keys, configured in Settings → Web Search).
@@ -116,6 +118,17 @@ Optional `web_search` tool backed by Ollama's hosted web search API (separate pr
 - Max ~100 messages per tab, ~50 tabs stored
 - Cleaned up when tabs are closed
 
+### Math & Code Rendering
+
+`parseMarkdown()` (`modules/markdown.js`) renders LaTeX through KaTeX and must not turn ordinary text into math:
+
+- **Currency is not math.** Inline math needs delimiters that hug non-space content, can't cross another `$` or a line break, and a closing `$` followed by a digit is rejected. Without those guards `$5–$10` and `between $88 million and $120 million` were captured as math, mangling the answer and making KaTeX log `Unrecognized Unicode character` for en dashes.
+- **Code is stashed before math extraction** — fenced blocks, an unclosed fence at end of input, and inline code spans are replaced with placeholders and restored before HTML escaping, so `$x$` inside code stays code instead of being rendered as KaTeX inside `<code>`.
+- **Unclosed fences flush at end of input** (`flushCodeBlock()`), so code renders while the reply is still streaming instead of every line after the opening fence disappearing until the closing fence arrives.
+- `strict: false` on both `renderToString` calls: model-authored math often contains Unicode that KaTeX only warns about, and the warning is console noise only.
+
+`scripts/check-markdown.mjs` (`npm test`) asserts all of the above by bundling the module with esbuild (it imports `katex`, so it can't be imported as a plain `.js` from an `.mjs` script).
+
 ### Markdown Table Rendering
 
 `.message-content th/td` in `sidepanel.css` use `white-space: normal` + `overflow-wrap: anywhere` so long unbroken tokens (e.g. inline code) wrap inside the narrow sidepanel column instead of forcing horizontal scroll.
@@ -127,6 +140,14 @@ User messages are rendered via `textSpan.textContent = content` in `addMessage()
 ### Copy Button (assistant messages)
 
 `appendAssistantFooter()` in `sidepanel.js` renders the "Using \<model\>" label and a copy button together under every assistant reply (shared by `addMessage()` and `updateStreamingMessage()` — previously two near-duplicated inline-styled blocks). `createCopyButton()` copies the raw reply string (not rendered HTML/markdown) via `navigator.clipboard.writeText()`. **Always attach a `.catch()` here** — a rejected clipboard write (e.g. focus/permission issues in the side panel context) fails silently with no visible error otherwise, since there's nothing else in the click handler to surface it. On success the button icon swaps to a checkmark for ~1.2s (`.message-copy-button.copied`) — a color/opacity change alone was tried first and was too subtle to register as feedback.
+
+### Input Textarea Auto-Resize
+
+`#message-input` uses native autosizing via `field-sizing: content` (Chrome 123+), guarded by `@supports` in `sidepanel.css`. `autoResizeTextarea()` in `sidepanel.js` bails out when `CSS.supports("field-sizing: content")` — its per-keystroke `height`/`scrollHeight` writes forced synchronous layouts and made fast typing appear in bursts. Don't remove that guard or write an inline height with `field-sizing` active.
+
+### Chat Auto-Scroll
+
+While a reply streams, `updateStreamingContent()` → `scrollToBottomIfNeeded()` follows the bottom only if the user hasn't scrolled up. The gate is `isUserAtBottom` plus a live `isAtBottom()` check, because the cached flag can be a frame stale when a delta lands mid-scroll. The scroll handler treats any decrease in `scrollTop` as a user scroll-up regardless of `isAtBottom()`'s 50px threshold — trackpad scrolls smaller than that otherwise stayed "at bottom" and every streamed chunk yanked the view back — and an upward `wheel` disables follow immediately, even before the content is tall enough to scroll. Reaching the bottom re-enables it; sending a message force-scrolls via `scrollToBottom()`, which also syncs `lastScrollTop` so programmatic scrolls aren't mistaken for user input.
 
 ### Send Button Loading State
 
@@ -189,7 +210,7 @@ Version lives in **two** files that must be kept in sync: `package.json` and `sr
 | `npm run build` | Production build |
 | `npm run zip` | Package dist/ for Chrome Web Store |
 | `npm run clean` | Delete dist/ |
-| `npm test` | Self-check for web search formatting and OAuth error mapping |
+| `npm test` | Self-checks for web search formatting, markdown/math rendering, and OAuth error mapping |
 
 ## Key Dependencies
 

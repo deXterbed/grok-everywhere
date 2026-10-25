@@ -420,6 +420,18 @@ html {
   color: var(--text-secondary);
 }
 
+/* Native autosize (Chrome 123+): the browser sizes the textarea from its
+   content, so autoResizeTextarea() must not run — its per-keystroke
+   height/scrollHeight writes forced synchronous layouts and made fast
+   typing appear in bursts. */
+@supports (field-sizing: content) {
+  #message-input {
+    height: auto;
+    overflow-y: auto;
+    field-sizing: content;
+  }
+}
+
 .input-toolbar {
   display: flex;
   align-items: center;
