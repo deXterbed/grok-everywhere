@@ -39,18 +39,35 @@ async function callResponsesApi(apiKey, input, oauth, signal = undefined) {
   return response;
 }
 
-async function readResponsesStream(response, streamingMessageId, onStream, abortArg) {
+export async function readResponsesStream(
+  response,
+  streamingMessageId,
+  onStream,
+  abortArg,
+) {
   // Accept an AbortSignal, an AbortController, or an object containing one.
   let signal = undefined;
   if (abortArg instanceof AbortSignal) signal = abortArg;
-  else if (abortArg && abortArg.signal instanceof AbortSignal) signal = abortArg.signal;
-  else if (abortArg && abortArg.abortController && abortArg.abortController.signal instanceof AbortSignal) signal = abortArg.abortController.signal;
+  else if (abortArg && abortArg.signal instanceof AbortSignal)
+    signal = abortArg.signal;
+  else if (
+    abortArg &&
+    abortArg.abortController &&
+    abortArg.abortController.signal instanceof AbortSignal
+  )
+    signal = abortArg.abortController.signal;
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let fullContent = "";
   let buffer = "";
 
-  const abortHandler = () => { try { reader.cancel(); } catch { /* ignore */ } };
+  const abortHandler = () => {
+    try {
+      reader.cancel();
+    } catch {
+      /* ignore */
+    }
+  };
   if (signal) {
     if (signal.aborted) abortHandler();
     else signal.addEventListener("abort", abortHandler, { once: true });
@@ -119,9 +136,11 @@ export async function fetchFileResponse({
       ? signal
       : abortSignal instanceof AbortSignal
         ? abortSignal
-        : (abortController && abortController.signal instanceof AbortSignal
-            ? abortController.signal
-            : (controller && controller.signal instanceof AbortSignal ? controller.signal : undefined));
+        : abortController && abortController.signal instanceof AbortSignal
+          ? abortController.signal
+          : controller && controller.signal instanceof AbortSignal
+            ? controller.signal
+            : undefined;
 
   const input = [];
 
@@ -150,7 +169,12 @@ export async function fetchFileResponse({
 
   let lastContent = "";
   try {
-    const response = await callResponsesApi(apiKey, input, oauth, resolvedSignal);
+    const response = await callResponsesApi(
+      apiKey,
+      input,
+      oauth,
+      resolvedSignal,
+    );
     lastContent = await readResponsesStream(
       response,
       streamingMessageId,
@@ -159,7 +183,8 @@ export async function fetchFileResponse({
     );
     return lastContent;
   } catch (err) {
-    if (resolvedSignal?.aborted || err?.name === "AbortError") return lastContent;
+    if (resolvedSignal?.aborted || err?.name === "AbortError")
+      return lastContent;
     throw err;
   }
 }

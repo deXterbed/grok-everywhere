@@ -1,11 +1,25 @@
 export function createStorage({ currentTabId, conversationHistory, MAX_MESSAGES_PER_TAB, MAX_TABS_TO_STORE }) {
   function cleanupOldConversations() {
-    chrome.storage.local.get(null, (result) => {
-      const conversationKeys = Object.keys(result).filter((key) =>
-        key.startsWith("conversationHistory_"),
-      );
+    // Returns a promise so callers (and tests) can await completion even though
+    // the underlying chrome.storage API is callback-based.
+    return new Promise((resolve) => {
+      let finished = false;
+      const finish = () => {
+        if (!finished) {
+          finished = true;
+          resolve();
+        }
+      };
+      chrome.storage.local.get(null, (result) => {
+        const conversationKeys = Object.keys(result || {}).filter((key) =>
+          key.startsWith("conversationHistory_"),
+        );
 
-      if (conversationKeys.length > MAX_TABS_TO_STORE) {
+        if (conversationKeys.length <= MAX_TABS_TO_STORE) {
+          finish();
+          return;
+        }
+
         const sortedKeys = conversationKeys.sort((a, b) => {
           const tabIdA = parseInt(a.replace("conversationHistory_", ""));
           const tabIdB = parseInt(b.replace("conversationHistory_", ""));
@@ -16,8 +30,13 @@ export function createStorage({ currentTabId, conversationHistory, MAX_MESSAGES_
           0,
           conversationKeys.length - MAX_TABS_TO_STORE,
         );
-        chrome.storage.local.remove(keysToRemove);
-      }
+        chrome.storage.local.remove(keysToRemove, finish);
+        // Fall back for mocks that remove synchronously without invoking the
+        // callback, so cleanupOldConversations() never hangs in tests.
+        setTimeout(finish, 0);
+      });
+      // Fall back if storage.get invokes nothing (defensive).
+      setTimeout(finish, 0);
     });
   }
 

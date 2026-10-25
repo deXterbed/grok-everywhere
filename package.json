@@ -8,7 +8,7 @@
     "build": "node scripts/build.mjs",
     "zip": "node scripts/zip.mjs",
     "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true});console.log('dist/ cleaned')\"",
-    "test": "node scripts/check-websearch.mjs && node scripts/check-markdown.mjs && node scripts/check-auth.mjs"
+    "test": "node --test --experimental-test-coverage"
   },
   "devDependencies": {
     "esbuild": "^0.25.4"

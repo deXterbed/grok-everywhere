@@ -215,7 +215,7 @@ Version lives in **two** files that must be kept in sync: `package.json` and `sr
 | `npm run build` | Production build |
 | `npm run zip` | Package dist/ for Chrome Web Store |
 | `npm run clean` | Delete dist/ |
-| `npm test` | Self-checks for web search formatting, markdown/math rendering, and OAuth error mapping |
+| `npm test` | Node built-in test runner (`node --test`) for markdown, web search, auth, storage, and tooling self-checks |
 
 ## Key Dependencies
 

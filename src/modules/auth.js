@@ -69,7 +69,7 @@ function positiveSecondsToMs(value, fallback) {
   return Number.isFinite(seconds) && seconds > 0 ? seconds * 1000 : fallback;
 }
 
-function toSession(tokens, fallbackRefresh = "") {
+export function toSession(tokens, fallbackRefresh = "") {
   if (!tokens?.access_token) throw new Error("xAI token response missing access_token");
   return {
     accessToken: tokens.access_token,
@@ -159,7 +159,7 @@ function refreshError(message, status, code, transient) {
   return error;
 }
 
-async function refreshAccessToken(refreshToken) {
+export async function refreshAccessToken(refreshToken) {
   let response;
   try {
     response = await fetch(TOKEN_URL, {
@@ -200,7 +200,7 @@ async function refreshAccessToken(refreshToken) {
   return response.json();
 }
 
-function sessionIsFresh(session) {
+export function sessionIsFresh(session) {
   return Boolean(
     session?.accessToken &&
       session.expiresAt &&
@@ -208,7 +208,7 @@ function sessionIsFresh(session) {
   );
 }
 
-async function refreshAndStore(session) {
+export async function refreshAndStore(session) {
   const next = toSession(
     await refreshAccessToken(session.refreshToken),
     session.refreshToken,
@@ -217,7 +217,7 @@ async function refreshAndStore(session) {
   return next;
 }
 
-async function ensureFreshSession(session) {
+export async function ensureFreshSession(session) {
   if (sessionIsFresh(session)) return session;
   if (!session?.refreshToken && !session?.accessToken) {
     throw refreshError(

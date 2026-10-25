@@ -36,7 +36,7 @@ const WEB_SEARCH_TOOL = {
   },
 };
 
-function extractFirstUrl(text) {
+export function extractFirstUrl(text) {
   const match = text.match(/https?:\/\/\S+/i);
   return match ? match[0].replace(/[),.]+$/, "") : null;
 }
@@ -210,8 +210,8 @@ async function fetchUrl(url) {
 // routed through the background service worker like fetchUrl. Snippets are
 // capped per result and overall — search results can be huge, and tool input
 // eats into the model's reply budget.
-const MAX_SNIPPET_CHARS = 1000;
-const MAX_RESULTS_CHARS = 8000;
+export const MAX_SNIPPET_CHARS = 1000;
+export const MAX_RESULTS_CHARS = 8000;
 
 export function formatSearchResults(results) {
   if (!Array.isArray(results) || results.length === 0) {
