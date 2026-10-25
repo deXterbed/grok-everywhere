@@ -19,7 +19,7 @@ const WEB_SEARCH_TOOL = {
   function: {
     name: "web_search",
     description:
-      "Search the web for current information. Use this for questions about recent events, current facts, or anything you are unsure about.",
+      "Search the web for current information. Use this for questions about recent events, current facts, anything you are unsure about, and especially whenever the provided webpage content does not answer the user's question.",
     parameters: {
       type: "object",
       properties: {
@@ -218,13 +218,21 @@ export async function fetchStreamingReply({
     day: "numeric",
   });
 
+  // The page content is context, not the scope of the answer. Models
+  // tend to treat it as a closed corpus and reply "the page doesn't say
+  // whether X" instead of searching, so this is spelled out as a hard rule
+  // in both the system prompt and the injected content message.
+  const contentRule = searchOn
+    ? "The webpage content is context, not a limit on what you may answer. If it does not fully answer the user's question, you MUST call web_search and answer from the results, citing the source URLs — never reply that the page/blog doesn't say or doesn't mention it, and never substitute that statement for an answer. Only after actually searching may you say something isn't available. Use web_search for recent events and current facts too."
+    : "The webpage content is context, not a limit on what you may answer. If it does not fully answer the user's question, answer from your own knowledge — never reply that the page/blog doesn't say or doesn't mention it, and never substitute that statement for an answer.";
+
   const messages = [
     {
       role: "system",
       content:
-        `You are Grok, a helpful AI assistant created by xAI. Today's date is ${today}. You will be provided context from the user's current webpage to help answer their questions more effectively. Focus on the main content, articles, text, and meaningful information from the webpage. Provide clear, concise responses that directly address the user's question based on the webpage content. You have a fetch_url tool that reads the live content of any webpage — you are not limited to prior knowledge or a training cutoff for this. Whenever the user's message contains or references a specific URL, always call fetch_url to read it before answering; never claim you can't browse or access the internet.` +
+        `You are Grok, a helpful AI assistant created by xAI. Today's date is ${today}. You will be provided context from the user's current webpage to help answer their questions more effectively. Focus on the main content, articles, text, and meaningful information from the webpage. ${contentRule} You have a fetch_url tool that reads the live content of any webpage — you are not limited to prior knowledge or a training cutoff for this. Whenever the user's message contains or references a specific URL, always call fetch_url to read it before answering; never claim you can't browse or access the internet.` +
         (searchOn
-          ? " You also have a web_search tool that queries the live web — use it when the user asks about recent events, current facts, or anything you are not certain about, and cite the source URLs in your answer."
+          ? " You also have a web_search tool that queries the live web, and you can chain it with fetch_url (e.g. search, then read a result link)."
           : ""),
     },
   ];
@@ -271,7 +279,11 @@ export async function fetchStreamingReply({
   } else if (content) {
     messages.push({
       role: "user",
-      content: `Here is the content from my current webpage:\n\n${content}\n\nPlease use this context to help answer my question. If I ask for a summary, summarize the main content from this webpage.`,
+      content: `Here is the content from my current webpage:\n\n${content}\n\nPlease use this context to help answer my question. If I ask for a summary, summarize the main content from this webpage. This extract is truncated, so if it does not answer my question, do not assume the answer isn't on the page. ${
+        searchOn
+          ? "Call web_search and answer from the results instead of telling me the page doesn't cover it."
+          : "Answer from your own knowledge instead of telling me the page doesn't cover it."
+      }`,
     });
   } else if (images && images.length && !supportsVision) {
     messages.push({
