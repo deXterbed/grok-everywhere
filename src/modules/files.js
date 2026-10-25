@@ -1,9 +1,9 @@
 // Max file size accepted by xAI's Files API
 export const MAX_FILE_SIZE = 48 * 1024 * 1024;
 
-import { parseApiError } from "./api.js";
+import { parseHttpError } from "./api.js";
 
-export async function uploadFile(apiKey, file) {
+export async function uploadFile(apiKey, file, { oauth = false } = {}) {
   const formData = new FormData();
   formData.append("purpose", "assistants");
   formData.append("expires_after", "86400"); // 24h — long enough to survive a multi-turn conversation
@@ -20,7 +20,12 @@ export async function uploadFile(apiKey, file) {
   if (!response.ok) {
     const errorData = await response.text();
     throw new Error(
-      parseApiError(errorData, `File upload failed with status ${response.status}`),
+      parseHttpError(
+        response.status,
+        errorData,
+        `File upload failed with status ${response.status}`,
+        { oauth },
+      ),
     );
   }
 

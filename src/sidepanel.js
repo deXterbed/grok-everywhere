@@ -9,6 +9,14 @@ import { fetchStreamingReply } from "./modules/api.js";
 import { uploadFile, MAX_FILE_SIZE } from "./modules/files.js";
 import { fetchFileResponse, FILE_MODEL } from "./modules/responses.js";
 import {
+  AUTH_MODE_API_KEY,
+  AUTH_MODE_OAUTH,
+  getBearerToken,
+  startDeviceLogin,
+  cancelDeviceLogin,
+  logoutOAuth,
+} from "./modules/auth.js";
+import {
   showLoading,
   hideLoading,
   showContextLoading,
@@ -31,7 +39,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   const attachButton = document.getElementById("attach-button");
   const attachmentInput = document.getElementById("attachment-input");
   const attachmentPreview = document.getElementById("attachment-preview");
-  let apiKey = null;
+  let apiKey = null; // active bearer (API key or OAuth access token)
+  let storedApiKey = null;
+  let authMode = AUTH_MODE_API_KEY;
   let currentScreenshot = null;
   let currentContent = null;
   let contextMode = "content"; // 'none', 'content', 'screenshot'
@@ -166,7 +176,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     if (!apiKey) {
       entry.status = "error";
-      entry.error = "API key required";
+      entry.error = "Sign in with SuperGrok or enter an API key";
       pendingFiles.push(entry);
       renderAttachmentPreview();
       return;
@@ -183,7 +193,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     pendingFiles.push(entry);
     renderAttachmentPreview();
 
-    entry.uploadPromise = uploadFile(apiKey, file)
+    entry.uploadPromise = refreshActiveBearer()
+      .then((bearer) => {
+        if (!bearer.token) {
+          throw new Error("Sign in with SuperGrok or enter an API key");
+        }
+        applyAuthenticatedUi();
+        return uploadFile(bearer.token, file, { oauth: bearer.oauth });
+      })
       .then((result) => {
         entry.status = "uploaded";
         entry.fileId = result.id;
@@ -239,12 +256,27 @@ document.addEventListener("DOMContentLoaded", async () => {
   let lastScrollTop = 0; // Previous scroll position, to detect upward scrolls
 
   // ── Model definitions ──────────────────────────────────────────────
-  // Based on xAI docs — active models as of June 2026
+  // Based on xAI docs — active models as of October 2026
   const TEXT_MODELS = [
+    {
+      id: "grok-4.7",
+      label: "Grok 4.7",
+      description: "Current flagship — coding, agents, vision",
+    },
+    {
+      id: "grok-4.6",
+      label: "Grok 4.6",
+      description: "Coding, agents, vision",
+    },
+    {
+      id: "grok-4.5",
+      label: "Grok 4.5",
+      description: "Agentic — required for file attachments",
+    },
     {
       id: "grok-4.3",
       label: "Grok 4.3",
-      description: "Flagship — best for chat & content",
+      description: "Strong chat & page content",
     },
     {
       id: "grok-4.20-0309-reasoning",
@@ -257,27 +289,42 @@ document.addEventListener("DOMContentLoaded", async () => {
       description: "Low latency, non-thinking",
     },
     {
-      id: "grok-4.20-multi-agent-0309",
-      label: "Grok 4.20 Multi-Agent",
-      description: "Multi-agent research, 2M context",
-    },
-    {
       id: "grok-build-0.1",
       label: "Grok Build 0.1",
       description: "Fast coding specialist (vision-capable)",
-    },
-    {
-      id: "grok-4.5",
-      label: "Grok 4.5",
-      description: "Agentic — required for file attachments",
     },
   ];
 
   const VISION_MODELS = [
     {
+      id: "grok-4.7",
+      label: "Grok 4.7",
+      description: "Current flagship — image input",
+    },
+    {
+      id: "grok-4.6",
+      label: "Grok 4.6",
+      description: "Image input",
+    },
+    {
+      id: "grok-4.5",
+      label: "Grok 4.5",
+      description: "Agentic with image input",
+    },
+    {
       id: "grok-4.3",
       label: "Grok 4.3",
-      description: "Flagship — supports image input",
+      description: "Supports image input",
+    },
+    {
+      id: "grok-4.20-0309-reasoning",
+      label: "Grok 4.20 Reasoning",
+      description: "Image input, low hallucination",
+    },
+    {
+      id: "grok-4.20-0309-non-reasoning",
+      label: "Grok 4.20 (fast)",
+      description: "Image input, low latency",
     },
     {
       id: "grok-build-0.1",
@@ -286,9 +333,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     },
   ];
 
-  // Selected model IDs (default to the recommended ones)
-  let textModel = "grok-4.3";
-  let visionModel = "grok-4.3";
+  const DEFAULT_TEXT_MODEL = "grok-4.3";
+  const DEFAULT_VISION_MODEL = "grok-4.3";
+  let textModel = DEFAULT_TEXT_MODEL;
+  let visionModel = DEFAULT_VISION_MODEL;
 
   // Web search via Ollama's hosted API — separate key from xAI, off by default
   let ollamaApiKey = null;
@@ -457,51 +505,144 @@ document.addEventListener("DOMContentLoaded", async () => {
     { passive: true },
   );
 
-  // Load theme, API key, and model settings
+  function setOauthPending(device) {
+    const banner = document.getElementById("oauth-device-banner");
+    const inputs = document.getElementById("api-key-input-container");
+    const settingsDevice = document.getElementById("settings-oauth-device");
+    if (device) {
+      document.getElementById("oauth-user-code").textContent = device.user_code;
+      document.getElementById("settings-oauth-user-code").textContent =
+        device.user_code;
+      banner.hidden = false;
+      inputs.style.display = "none";
+      settingsDevice.hidden = false;
+    } else {
+      banner.hidden = true;
+      inputs.style.display = "flex";
+      settingsDevice.hidden = true;
+    }
+  }
+
+  function updateOauthSettingsUi() {
+    const signedIn = authMode === AUTH_MODE_OAUTH;
+    document.getElementById("oauth-status").textContent = signedIn
+      ? "Signed in"
+      : "Optional device-code sign-in";
+    document.getElementById("oauth-login").hidden = signedIn;
+    document.getElementById("oauth-logout").hidden = !signedIn;
+  }
+
+  function applyAuthenticatedUi() {
+    if (storedApiKey) {
+      apiKeyInput.value = "API key saved";
+      apiKeyInput.classList.add("saved");
+      saveApiKeyButton.classList.add("active");
+    } else {
+      apiKeyInput.value = "";
+      apiKeyInput.classList.remove("saved");
+      saveApiKeyButton.classList.remove("active");
+    }
+    updateOauthSettingsUi();
+    if (apiKey || authMode === AUTH_MODE_OAUTH) {
+      messageInput.disabled = false;
+      showPageContext();
+    } else {
+      messageInput.disabled = true;
+      saveApiKeyButton.style.display = "flex";
+      apiKeyInput.style.display = "block";
+      showApiKeySection();
+    }
+    updateClearHistoryVisibility();
+  }
+
+  async function refreshActiveBearer() {
+    const bearer = await getBearerToken();
+    apiKey = bearer.token;
+    const stored = await chrome.storage.local.get(["authMode", "xaiApiKey"]);
+    authMode = stored.authMode || AUTH_MODE_API_KEY;
+    storedApiKey = stored.xaiApiKey || null;
+    return bearer;
+  }
+
+  async function runDeviceLogin() {
+    showContextLoading("Starting SuperGrok sign-in...");
+    try {
+      const session = await startDeviceLogin((device) => {
+        hideContextLoading();
+        setOauthPending(device);
+        addMessage(
+          `SuperGrok sign-in: enter ${device.user_code} at ${device.verification_uri}`,
+          false,
+        );
+      });
+      setOauthPending(null);
+      authMode = AUTH_MODE_OAUTH;
+      apiKey = session.accessToken;
+      applyAuthenticatedUi();
+    } catch (error) {
+      setOauthPending(null);
+      if (error?.name !== "AbortError") {
+        addMessage(`[!] ${error.message}`, false);
+      }
+      await refreshActiveBearer().catch((refreshError) => {
+        addMessage(`[!] ${refreshError.message}`, false);
+      });
+      applyAuthenticatedUi();
+    } finally {
+      hideContextLoading();
+    }
+  }
+
+  // Load theme, API key / OAuth, and model settings
   const result = await chrome.storage.local.get([
     "xaiApiKey",
     "theme",
     "textModel",
     "visionModel",
+    "authMode",
     "ollamaApiKey",
     "webSearchEnabled",
   ]);
-  apiKey = result.xaiApiKey;
+  storedApiKey = result.xaiApiKey || null;
+  authMode = result.authMode || AUTH_MODE_API_KEY;
   ollamaApiKey = result.ollamaApiKey || null;
   webSearchEnabled = Boolean(result.webSearchEnabled);
+  let startupAuthError = null;
+  try {
+    await refreshActiveBearer();
+  } catch (error) {
+    startupAuthError = error;
+  }
   const savedTheme = result.theme || "dark";
   document.documentElement.dataset.theme = savedTheme;
-  if (result.textModel) textModel = result.textModel;
-  if (result.visionModel) visionModel = result.visionModel;
+  // Chat completions rejects this id with HTTP 400. A saved pick must not be sent.
+  const removedModel = "grok-4.20-multi-agent-0309";
+  if (result.textModel && result.textModel !== removedModel) textModel = result.textModel;
+  if (result.visionModel && result.visionModel !== removedModel) {
+    visionModel = result.visionModel;
+  }
+  if (result.textModel === removedModel || result.visionModel === removedModel) {
+    chrome.storage.local.set({ textModel, visionModel });
+  }
 
   // Populate model selects with saved values
   populateModelSelect(modelSelectEl, TEXT_MODELS, textModel);
   populateModelSelect(visionSelectEl, VISION_MODELS, visionModel);
 
-  if (apiKey) {
-    apiKeyInput.value = "API key saved";
-    apiKeyInput.classList.add("saved");
-    saveApiKeyButton.classList.add("active");
-    messageInput.disabled = false;
-    showPageContext();
-    updateClearHistoryVisibility();
-  } else {
-    messageInput.disabled = true;
-    saveApiKeyButton.style.display = "flex";
-    apiKeyInput.style.display = "block";
-    showApiKeySection();
-    clearHistoryButton.style.display = "none";
+  applyAuthenticatedUi();
+  if (startupAuthError) {
+    addMessage(`[!] ${startupAuthError.message}`, false);
   }
 
   // Handle API key input and save
   apiKeyInput.addEventListener("focus", () => {
-    if (apiKey && apiKeyInput.classList.contains("saved")) {
-      apiKeyInput.value = apiKey;
+    if (storedApiKey && apiKeyInput.classList.contains("saved")) {
+      apiKeyInput.value = storedApiKey;
     }
   });
 
   apiKeyInput.addEventListener("blur", () => {
-    if (apiKey && apiKeyInput.classList.contains("saved")) {
+    if (storedApiKey && apiKeyInput.classList.contains("saved")) {
       apiKeyInput.value = "API key saved";
     }
   });
@@ -511,27 +652,31 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     // Ignore browser-initiated input events (autofill) when key is already loaded.
     // Only react if the user is actually typing a new key or intentionally clearing.
-    if (apiKey && apiKeyInput.classList.contains("saved")) {
+    if (storedApiKey && apiKeyInput.classList.contains("saved")) {
       // User is editing a saved key — un-mark as saved but don't delete yet
       apiKeyInput.classList.remove("saved");
       saveApiKeyButton.classList.remove("active");
       // Only delete from storage if user intentionally cleared the field
       if (!newValue) {
         await chrome.storage.local.remove("xaiApiKey");
-        apiKey = null;
-        clearHistoryButton.style.display = "none";
+        storedApiKey = null;
+        if (authMode !== AUTH_MODE_OAUTH) {
+          apiKey = null;
+          clearHistoryButton.style.display = "none";
+        }
       }
-      messageInput.disabled = !newValue;
+      if (authMode !== AUTH_MODE_OAUTH) messageInput.disabled = !newValue;
       return;
     }
 
     // No saved key yet — normal input handling
     if (!newValue) {
       await chrome.storage.local.remove("xaiApiKey");
-      apiKey = null;
+      storedApiKey = null;
+      if (authMode !== AUTH_MODE_OAUTH) apiKey = null;
     }
 
-    messageInput.disabled = !newValue;
+    if (authMode !== AUTH_MODE_OAUTH) messageInput.disabled = !newValue;
   });
 
   saveApiKeyButton.addEventListener("click", async () => {
@@ -539,30 +684,38 @@ document.addEventListener("DOMContentLoaded", async () => {
       // If button is active, clicking it should delete the API key
       showContextLoading("Removing API key...");
       await chrome.storage.local.remove("xaiApiKey");
-      apiKey = null;
-      apiKeyInput.value = "";
-      apiKeyInput.classList.remove("saved");
-      saveApiKeyButton.classList.remove("active");
-      messageInput.disabled = true;
-      showApiKeySection();
-      updateClearHistoryVisibility();
+      storedApiKey = null;
+      if (authMode === AUTH_MODE_OAUTH) {
+        await refreshActiveBearer().catch(() => {});
+      } else {
+        apiKey = null;
+      }
+      applyAuthenticatedUi();
       hideContextLoading();
     } else {
       // If button is not active, save the new API key
       const newApiKey = apiKeyInput.value.trim();
       if (newApiKey) {
         showContextLoading("Saving API key...");
-        await chrome.storage.local.set({ xaiApiKey: newApiKey });
+        await chrome.storage.local.set({
+          xaiApiKey: newApiKey,
+          authMode: AUTH_MODE_API_KEY,
+        });
+        storedApiKey = newApiKey;
+        authMode = AUTH_MODE_API_KEY;
         apiKey = newApiKey;
-        apiKeyInput.value = "API key saved";
-        apiKeyInput.classList.add("saved");
-        saveApiKeyButton.classList.add("active");
-        messageInput.disabled = false;
-        showPageContext();
-        updateClearHistoryVisibility();
+        applyAuthenticatedUi();
         hideContextLoading();
       }
     }
+  });
+
+  document
+    .getElementById("header-oauth-login")
+    .addEventListener("click", runDeviceLogin);
+  document.getElementById("oauth-cancel").addEventListener("click", () => {
+    cancelDeviceLogin();
+    setOauthPending(null);
   });
 
   // Create context mode management (needs to be before updateContextModeUI call)
@@ -752,11 +905,25 @@ document.addEventListener("DOMContentLoaded", async () => {
   // Function to handle message sending
   async function handleMessageSend() {
     if (
-      (!messageInput.value.trim() &&
-        pendingAttachments.length === 0 &&
-        pendingFiles.length === 0) ||
-      !apiKey
+      !messageInput.value.trim() &&
+      pendingAttachments.length === 0 &&
+      pendingFiles.length === 0
     ) {
+      return;
+    }
+    let oauth = false;
+    try {
+      const bearer = await refreshActiveBearer();
+      oauth = bearer.oauth;
+    } catch (error) {
+      addMessage(`[!] ${error.message}`, false);
+      return;
+    }
+    if (!apiKey) {
+      addMessage(
+        "[!] Sign in with SuperGrok or enter an xAI API key.",
+        false,
+      );
       return;
     }
 
@@ -879,7 +1046,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           : getTextModelLabel();
       showTypingIndicator(model);
 
-      await sendMessage(message, images, contentToSend, filesToSend);
+      await sendMessage(message, images, contentToSend, filesToSend, oauth);
     } catch (error) {
       // If sending fails, restore the attachments so the user doesn't lose them
       pendingAttachments = attachmentsToSend;
@@ -908,7 +1075,6 @@ document.addEventListener("DOMContentLoaded", async () => {
             ? getVisionModelLabel()
             : getTextModelLabel(),
       );
-      throw error;
     }
   }
 
@@ -952,7 +1118,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   );
 
   function openSettings() {
-    settingsApiInput.value = apiKey || "";
+    settingsApiInput.value = storedApiKey || "";
     settingsApiSave.textContent = "Save";
     settingsApiSave.classList.remove("saved");
     settingsOllamaInput.value = ollamaApiKey || "";
@@ -961,6 +1127,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     modelSelectEl.value = textModel;
     visionSelectEl.value = visionModel;
     updateThemeButtons();
+    updateOauthSettingsUi();
     settingsView.style.display = "flex";
     chatContainer.style.display = "none";
     if (inputContainer) inputContainer.style.display = "none";
@@ -992,11 +1159,14 @@ document.addEventListener("DOMContentLoaded", async () => {
   settingsApiSave.addEventListener("click", async () => {
     const newKey = settingsApiInput.value.trim();
     if (!newKey) return;
-    await chrome.storage.local.set({ xaiApiKey: newKey });
+    await chrome.storage.local.set({
+      xaiApiKey: newKey,
+      authMode: AUTH_MODE_API_KEY,
+    });
+    storedApiKey = newKey;
+    authMode = AUTH_MODE_API_KEY;
     apiKey = newKey;
-    messageInput.disabled = false;
-    showPageContext();
-    updateClearHistoryVisibility();
+    applyAuthenticatedUi();
     settingsApiSave.textContent = "Saved";
     settingsApiSave.classList.add("saved");
     setTimeout(() => {
@@ -1022,6 +1192,14 @@ document.addEventListener("DOMContentLoaded", async () => {
   webSearchToggle.addEventListener("change", async () => {
     webSearchEnabled = webSearchToggle.checked;
     await chrome.storage.local.set({ webSearchEnabled });
+  });
+
+  document.getElementById("oauth-login").addEventListener("click", runDeviceLogin);
+  document.getElementById("oauth-logout").addEventListener("click", async () => {
+    await logoutOAuth();
+    authMode = AUTH_MODE_API_KEY;
+    apiKey = storedApiKey;
+    applyAuthenticatedUi();
   });
 
   document.querySelectorAll(".theme-btn").forEach((btn) => {
@@ -1093,7 +1271,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   });
 
-  async function sendMessage(message, images, content, files) {
+  async function sendMessage(message, images, content, files, oauth) {
     // Files (any file attached this turn, or in earlier turns of this
     // conversation) require xAI's Responses API — it's the only endpoint
     // that supports input_file / attachment_search. See CLAUDE.md.
@@ -1140,16 +1318,17 @@ document.addEventListener("DOMContentLoaded", async () => {
           ? getVisionModelLabel()
           : getTextModelLabel();
 
+    const streamingMessageId = Date.now().toString();
     try {
       // Create a placeholder message for the streaming response
-      const streamingMessageId = Date.now().toString();
-      const streamingMessageElement = addStreamingMessage(streamingMessageId);
+      addStreamingMessage(streamingMessageId);
 
       // Get streaming reply
       const reply = usesFiles
         ? await fetchFileResponse({
             streamingMessageId,
             apiKey,
+            oauth,
             conversationHistory,
             onStream: updateStreamingContent,
           })
@@ -1162,6 +1341,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             apiKey,
             ollamaApiKey,
             webSearchEnabled,
+            oauth,
             conversationHistory,
             onStream: updateStreamingContent,
           });
@@ -1189,8 +1369,10 @@ document.addEventListener("DOMContentLoaded", async () => {
       // Update the streaming message with final content
       updateStreamingMessage(streamingMessageId, reply, model);
     } catch (error) {
-      // Hide typing indicator on error
+      // Hide typing indicator on error. 403 from SuperGrok OAuth is shown
+      // once here — no refresh/retry loop.
       hideTypingIndicator(modelLabel());
+      updateStreamingMessage(streamingMessageId, error.message);
       throw error;
     }
   }

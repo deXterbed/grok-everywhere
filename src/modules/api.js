@@ -1,3 +1,5 @@
+import { OAUTH_403_MESSAGE } from "./auth.js";
+
 const FETCH_URL_TOOL = {
   type: "function",
   function: {
@@ -42,7 +44,12 @@ function extractFirstUrl(text) {
 export function modelSupportsVision(modelId) {
   // Vision-capable Grok models — checked against xAI docs
   const visionModels = [
+    "grok-4.7",
+    "grok-4.6",
+    "grok-4.5",
     "grok-4.3",
+    "grok-4.20-0309-reasoning",
+    "grok-4.20-0309-non-reasoning",
     "grok-build-0.1",
     "grok-2-vision",
     "grok-vision-beta",
@@ -59,7 +66,12 @@ export function parseApiError(errorData, fallback) {
   }
 }
 
-async function callApi(apiKey, model, messages, tools, toolChoice = "auto") {
+export function parseHttpError(status, errorData, fallback, options = {}) {
+  if (status === 403 && options?.oauth) return OAUTH_403_MESSAGE;
+  return parseApiError(errorData, fallback);
+}
+
+async function callApi(apiKey, model, messages, tools, toolChoice = "auto", oauth = false) {
   const body = {
     model,
     messages,
@@ -82,7 +94,12 @@ async function callApi(apiKey, model, messages, tools, toolChoice = "auto") {
   if (!response.ok) {
     const errorData = await response.text();
     throw new Error(
-      parseApiError(errorData, `API request failed with status ${response.status}`),
+      parseHttpError(
+        response.status,
+        errorData,
+        `API request failed with status ${response.status}`,
+        { oauth },
+      ),
     );
   }
   return response;
@@ -197,6 +214,7 @@ export async function fetchStreamingReply({
   apiKey,
   ollamaApiKey,
   webSearchEnabled,
+  oauth = false,
   conversationHistory,
   onStream,
 }) {
@@ -329,7 +347,7 @@ export async function fetchStreamingReply({
   // Capped to bound cost and runaway loops.
   const MAX_TOOL_ROUNDS = 4;
   for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
-    const response = await callApi(apiKey, model, messages, tools);
+    const response = await callApi(apiKey, model, messages, tools, "auto", oauth);
     const { content, toolCalls } = await readStream(
       response,
       streamingMessageId,

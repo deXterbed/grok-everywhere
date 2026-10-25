@@ -1,23 +1,10 @@
 // Minimal self-check for the pure web-search formatting logic in
-// src/modules/api.js. The module has no imports, so it's copied to a temp
-// .mjs (node treats bare .js as CommonJS in this package) and imported from
-// there. Run with: npm test
-import { copyFileSync, mkdtempSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+// src/modules/api.js. Run with: npm test
 import assert from "node:assert";
+import { importSrcModules } from "./load-src.mjs";
 
-const src = join(
-  dirname(fileURLToPath(import.meta.url)),
-  "../src/modules/api.js",
-);
-const tmpDir = mkdtempSync(join(tmpdir(), "grok-check-"));
-const tmp = join(tmpDir, "api.mjs");
-copyFileSync(src, tmp);
-
-const { formatSearchResults, readStream } = await import(tmp);
-rmSync(tmpDir, { recursive: true, force: true });
+const { api } = await importSrcModules(["auth", "api"]);
+const { formatSearchResults, readStream } = api;
 
 assert.equal(formatSearchResults([]), "No results found.");
 assert.equal(formatSearchResults(null), "No results found.");
