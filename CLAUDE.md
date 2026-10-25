@@ -108,6 +108,17 @@ Optional `web_search` tool backed by Ollama's hosted web search API (separate pr
 - Max ~100 messages per tab, ~50 tabs stored
 - Cleaned up when tabs are closed
 
+### Math & Code Rendering
+
+`parseMarkdown()` (`modules/markdown.js`) renders LaTeX through KaTeX and must not turn ordinary text into math:
+
+- **Currency is not math.** Inline math needs delimiters that hug non-space content, can't cross another `$` or a line break, and a closing `$` followed by a digit is rejected. Without those guards `$5–$10` and `between $88 million and $120 million` were captured as math, mangling the answer and making KaTeX log `Unrecognized Unicode character` for en dashes.
+- **Code is stashed before math extraction** — fenced blocks, an unclosed fence at end of input, and inline code spans are replaced with placeholders and restored before HTML escaping, so `$x$` inside code stays code instead of being rendered as KaTeX inside `<code>`.
+- **Unclosed fences flush at end of input** (`flushCodeBlock()`), so code renders while the reply is still streaming instead of every line after the opening fence disappearing until the closing fence arrives.
+- `strict: false` on both `renderToString` calls: model-authored math often contains Unicode that KaTeX only warns about, and the warning is console noise only.
+
+`scripts/check-markdown.mjs` (`npm test`) asserts all of the above by bundling the module with esbuild (it imports `katex`, so it can't be imported as a plain `.js` from an `.mjs` script).
+
 ### Markdown Table Rendering
 
 `.message-content th/td` in `sidepanel.css` use `white-space: normal` + `overflow-wrap: anywhere` so long unbroken tokens (e.g. inline code) wrap inside the narrow sidepanel column instead of forcing horizontal scroll.
@@ -189,7 +200,7 @@ Version lives in **two** files that must be kept in sync: `package.json` and `sr
 | `npm run build` | Production build |
 | `npm run zip` | Package dist/ for Chrome Web Store |
 | `npm run clean` | Delete dist/ |
-| `npm test` | Self-check for web search result formatting |
+| `npm test` | Self-checks for web search formatting and markdown/math rendering |
 
 ## Key Dependencies
 
