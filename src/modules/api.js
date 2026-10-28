@@ -71,7 +71,7 @@ export function parseHttpError(status, errorData, fallback, options = {}) {
   return parseApiError(errorData, fallback);
 }
 
-async function callApi(apiKey, model, messages, tools, toolChoice = "auto", oauth = false) {
+async function callApi(apiKey, model, messages, tools, toolChoice = "auto", oauth = false, signal = undefined) {
   const body = {
     model,
     messages,
@@ -90,6 +90,7 @@ async function callApi(apiKey, model, messages, tools, toolChoice = "auto", oaut
       Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify(body),
+    signal,
   });
   if (!response.ok) {
     const errorData = await response.text();
@@ -105,7 +106,13 @@ async function callApi(apiKey, model, messages, tools, toolChoice = "auto", oaut
   return response;
 }
 
-export async function readStream(response, streamingMessageId, onStream) {
+export async function readStream(response, streamingMessageId, onStream, abortArg) {
+  // Accept an AbortSignal, an AbortController, or an object containing one so
+  // callers can use whichever shape is convenient.
+  let signal = undefined;
+  if (abortArg instanceof AbortSignal) signal = abortArg;
+  else if (abortArg && abortArg.signal instanceof AbortSignal) signal = abortArg.signal;
+  else if (abortArg && abortArg.abortController && abortArg.abortController.signal instanceof AbortSignal) signal = abortArg.abortController.signal;
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let fullContent = "";
@@ -116,9 +123,29 @@ export async function readStream(response, streamingMessageId, onStream) {
   // corrupts the JSON ("Unexpected non-whitespace character after JSON").
   const toolCalls = [];
 
+  const abortHandler = () => {
+    try { reader.cancel(); } catch { /* ignore */ }
+  };
+  if (signal) {
+    if (signal.aborted) abortHandler();
+    else signal.addEventListener("abort", abortHandler, { once: true });
+  }
+
   try {
     while (true) {
-      const { done, value } = await reader.read();
+      if (signal?.aborted) {
+        return { content: fullContent, toolCalls: toolCalls.filter(Boolean) };
+      }
+      let result;
+      try {
+        result = await reader.read();
+      } catch (err) {
+        if (signal?.aborted || err?.name === "AbortError") {
+          return { content: fullContent, toolCalls: toolCalls.filter(Boolean) };
+        }
+        throw err;
+      }
+      const { done, value } = result;
       if (done) break;
       buffer += decoder.decode(value, { stream: true });
       const lines = buffer.split("\n");
@@ -151,7 +178,14 @@ export async function readStream(response, streamingMessageId, onStream) {
         }
       }
     }
+  } catch (err) {
+    if (signal?.aborted || err?.name === "AbortError") {
+      return { content: fullContent, toolCalls: toolCalls.filter(Boolean) };
+    }
+    throw err;
   } finally {
+    if (signal)
+      signal.removeEventListener("abort", abortHandler);
     reader.releaseLock();
   }
 
@@ -217,6 +251,10 @@ export async function fetchStreamingReply({
   oauth = false,
   conversationHistory,
   onStream,
+  signal,
+  abortSignal,
+  abortController,
+  controller,
 }) {
   const supportsVision = modelSupportsVision(model);
 
@@ -346,52 +384,61 @@ export async function fetchStreamingReply({
   // model can chain (e.g. web_search, then fetch_url on a result link).
   // Capped to bound cost and runaway loops.
   const MAX_TOOL_ROUNDS = 4;
-  for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
-    const response = await callApi(apiKey, model, messages, tools, "auto", oauth);
-    const { content, toolCalls } = await readStream(
-      response,
-      streamingMessageId,
-      onStream,
-    );
+  let lastContent = "";
+  try {
+    for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
+      const response = await callApi(apiKey, model, messages, tools, "auto", oauth, resolvedSignal);
+      const { content, toolCalls } = await readStream(
+        response,
+        streamingMessageId,
+        onStream,
+        resolvedSignal,
+      );
+      lastContent = content;
 
-    if (toolCalls.length === 0 || round === MAX_TOOL_ROUNDS) return content;
+      if (toolCalls.length === 0 || round === MAX_TOOL_ROUNDS) return content;
 
-    const toolResults = [];
-    for (const toolCall of toolCalls) {
-      // A malformed single call shouldn't kill the whole reply — report the
-      // failure back as the tool result so the model can recover.
-      let toolResult;
-      try {
-        if (toolCall.name === "web_search") {
-          const { query, max_results } = JSON.parse(toolCall.args);
-          onStream(streamingMessageId, `Searching the web for "${query}"...`);
-          toolResult = await webSearch(query, max_results, ollamaApiKey);
-        } else {
-          const { url } = JSON.parse(toolCall.args);
-          onStream(streamingMessageId, `Fetching ${url}...`);
-          toolResult = await fetchUrl(url);
+      const toolResults = [];
+      for (const toolCall of toolCalls) {
+        // A malformed single call shouldn't kill the whole reply — report the
+        // failure back as the tool result so the model can recover.
+        let toolResult;
+        try {
+          if (toolCall.name === "web_search") {
+            const { query, max_results } = JSON.parse(toolCall.args);
+            onStream(streamingMessageId, `Searching the web for "${query}"...`);
+            toolResult = await webSearch(query, max_results, ollamaApiKey);
+          } else {
+            const { url } = JSON.parse(toolCall.args);
+            onStream(streamingMessageId, `Fetching ${url}...`);
+            toolResult = await fetchUrl(url);
+          }
+        } catch (err) {
+          toolResult = `Error running ${toolCall.name}: ${err.message}`;
         }
-      } catch (err) {
-        toolResult = `Error running ${toolCall.name}: ${err.message}`;
+        toolResults.push(toolResult);
       }
-      toolResults.push(toolResult);
-    }
 
-    messages.push({
-      role: "assistant",
-      content: null,
-      tool_calls: toolCalls.map((tc) => ({
-        id: tc.id,
-        type: "function",
-        function: { name: tc.name, arguments: tc.args },
-      })),
-    });
-    toolCalls.forEach((tc, i) => {
       messages.push({
-        role: "tool",
-        tool_call_id: tc.id,
-        content: toolResults[i],
+        role: "assistant",
+        content: null,
+        tool_calls: toolCalls.map((tc) => ({
+          id: tc.id,
+          type: "function",
+          function: { name: tc.name, arguments: tc.args },
+        })),
       });
-    });
+      toolCalls.forEach((tc, i) => {
+        messages.push({
+          role: "tool",
+          tool_call_id: tc.id,
+          content: toolResults[i],
+        });
+      });
+    }
+  } catch (err) {
+    if (resolvedSignal?.aborted || err?.name === "AbortError") return lastContent;
+    throw err;
   }
+  return lastContent;
 }

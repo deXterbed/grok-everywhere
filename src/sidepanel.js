@@ -865,6 +865,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   // Keep track of conversation history per tab
   let conversationHistory = [];
   let currentTabId = null;
+  let currentAbortController = null;
 
   // Configuration for chat history management
   const MAX_MESSAGES_PER_TAB = 50;
@@ -904,8 +905,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // Function to handle message sending
   async function handleMessageSend() {
+    if (currentAbortController) return;
     if (
-      !messageInput.value.trim() &&
       pendingAttachments.length === 0 &&
       pendingFiles.length === 0
     ) {
@@ -1082,6 +1083,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   messageInput.addEventListener("keypress", async (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
+      if (currentAbortController) return;
       await handleMessageSend();
     }
   });
@@ -1089,9 +1091,36 @@ document.addEventListener("DOMContentLoaded", async () => {
   // Auto-resize textarea as user types
   messageInput.addEventListener("input", autoResizeTextarea);
 
+  const SEND_BUTTON_ICON =
+    '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 19V5" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 12l7-7 7 7" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  const STOP_BUTTON_ICON =
+    '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="6" y="6" width="12" height="12" rx="2" fill="white"/></svg>';
+
+  function setGeneratingState(active) {
+    const btn = document.querySelector(".send-button");
+    if (!btn) return;
+    if (active) {
+      btn.classList.add("generating");
+      btn.classList.remove("loading");
+      btn.disabled = false;
+      btn.innerHTML = STOP_BUTTON_ICON;
+    } else {
+      btn.classList.remove("generating");
+      btn.classList.remove("loading");
+      btn.disabled = false;
+      btn.innerHTML = SEND_BUTTON_ICON;
+    }
+  }
+
   // Handle send button click
   const sendButton = document.querySelector(".send-button");
-  sendButton.addEventListener("click", handleMessageSend);
+  sendButton.addEventListener("click", () => {
+    if (currentAbortController) {
+      currentAbortController.abort();
+    } else {
+      handleMessageSend();
+    }
+  });
 
   // Quick action buttons
   document.querySelectorAll(".quick-action-btn").forEach((btn) => {
@@ -1318,6 +1347,10 @@ document.addEventListener("DOMContentLoaded", async () => {
           ? getVisionModelLabel()
           : getTextModelLabel();
 
+    const controller = new AbortController();
+    currentAbortController = controller;
+    setGeneratingState(true);
+
     const streamingMessageId = Date.now().toString();
     try {
       // Create a placeholder message for the streaming response
@@ -1331,6 +1364,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             oauth,
             conversationHistory,
             onStream: updateStreamingContent,
+            signal: controller.signal,
           })
         : await fetchStreamingReply({
             message,
@@ -1344,6 +1378,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             oauth,
             conversationHistory,
             onStream: updateStreamingContent,
+            signal: controller.signal,
           });
 
       // Hide typing indicator
@@ -1372,8 +1407,13 @@ document.addEventListener("DOMContentLoaded", async () => {
       // Hide typing indicator on error. 403 from SuperGrok OAuth is shown
       // once here — no refresh/retry loop.
       hideTypingIndicator(modelLabel());
-      updateStreamingMessage(streamingMessageId, error.message);
-      throw error;
+      if (error?.name !== "AbortError") {
+        updateStreamingMessage(streamingMessageId, error.message);
+        throw error;
+      }
+    } finally {
+      currentAbortController = null;
+      setGeneratingState(false);
     }
   }
 

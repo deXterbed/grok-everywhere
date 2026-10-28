@@ -10,7 +10,7 @@ const SYSTEM_INSTRUCTIONS =
 
 import { parseHttpError } from "./api.js";
 
-async function callResponsesApi(apiKey, input, oauth) {
+async function callResponsesApi(apiKey, input, oauth, signal = undefined) {
   const response = await fetch("https://api.x.ai/v1/responses", {
     method: "POST",
     headers: {
@@ -23,6 +23,7 @@ async function callResponsesApi(apiKey, input, oauth) {
       input,
       stream: true,
     }),
+    signal,
   });
   if (!response.ok) {
     const errorData = await response.text();
@@ -38,15 +39,34 @@ async function callResponsesApi(apiKey, input, oauth) {
   return response;
 }
 
-async function readResponsesStream(response, streamingMessageId, onStream) {
+async function readResponsesStream(response, streamingMessageId, onStream, abortArg) {
+  // Accept an AbortSignal, an AbortController, or an object containing one.
+  let signal = undefined;
+  if (abortArg instanceof AbortSignal) signal = abortArg;
+  else if (abortArg && abortArg.signal instanceof AbortSignal) signal = abortArg.signal;
+  else if (abortArg && abortArg.abortController && abortArg.abortController.signal instanceof AbortSignal) signal = abortArg.abortController.signal;
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let fullContent = "";
   let buffer = "";
 
+  const abortHandler = () => { try { reader.cancel(); } catch { /* ignore */ } };
+  if (signal) {
+    if (signal.aborted) abortHandler();
+    else signal.addEventListener("abort", abortHandler, { once: true });
+  }
+
   try {
     while (true) {
-      const { done, value } = await reader.read();
+      if (signal?.aborted) return fullContent;
+      let result;
+      try {
+        result = await reader.read();
+      } catch (err) {
+        if (signal?.aborted || err?.name === "AbortError") return fullContent;
+        throw err;
+      }
+      const { done, value } = result;
       if (done) break;
       buffer += decoder.decode(value, { stream: true });
       const lines = buffer.split("\n");
@@ -69,7 +89,11 @@ async function readResponsesStream(response, streamingMessageId, onStream) {
         }
       }
     }
+  } catch (err) {
+    if (signal?.aborted || err?.name === "AbortError") return fullContent;
+    throw err;
   } finally {
+    if (signal) signal.removeEventListener("abort", abortHandler);
     reader.releaseLock();
   }
 
@@ -85,7 +109,20 @@ export async function fetchFileResponse({
   oauth = false,
   conversationHistory,
   onStream,
+  signal,
+  abortSignal,
+  abortController,
+  controller,
 }) {
+  const resolvedSignal =
+    signal instanceof AbortSignal
+      ? signal
+      : abortSignal instanceof AbortSignal
+        ? abortSignal
+        : (abortController && abortController.signal instanceof AbortSignal
+            ? abortController.signal
+            : (controller && controller.signal instanceof AbortSignal ? controller.signal : undefined));
+
   const input = [];
 
   conversationHistory.forEach((msg) => {
@@ -111,6 +148,18 @@ export async function fetchFileResponse({
     }
   });
 
-  const response = await callResponsesApi(apiKey, input, oauth);
-  return readResponsesStream(response, streamingMessageId, onStream);
+  let lastContent = "";
+  try {
+    const response = await callResponsesApi(apiKey, input, oauth, resolvedSignal);
+    lastContent = await readResponsesStream(
+      response,
+      streamingMessageId,
+      onStream,
+      resolvedSignal,
+    );
+    return lastContent;
+  } catch (err) {
+    if (resolvedSignal?.aborted || err?.name === "AbortError") return lastContent;
+    throw err;
+  }
 }

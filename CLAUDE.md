@@ -156,6 +156,8 @@ While a reply streams, `updateStreamingContent()` → `scrollToBottomIfNeeded()`
 
 `showLoading()` (`ui.js`) adds a `.loading` class to the send button on every send — CSS swaps the arrow for a spinner. `hideTypingIndicator()` is the single cleanup point for all loading/typing state on **every** path (success, error, extraction failure): it must reset `disabled` AND remove `.loading` from the send button and message input, otherwise the spinner spins forever after the reply. `hideLoading()` deliberately clears only the input-container overlay — keep cleanup in `hideTypingIndicator`, don't split it again.
 
+While generating, `currentAbortController` is set and the send button becomes a square Stop icon that calls `controller.abort()`; `handleMessageSend`/Enter are ignored in that state. `fetchStreamingReply`/`fetchFileResponse` accept `signal`/`abortSignal`/`abortController`/`controller` (normalized internally) and pass it to `fetch` + the tool loop; `readStream`/`readResponsesStream` cancel the reader on abort and return the partial content, so an aborted turn finalizes the partial reply instead of overwriting it with an error. Don't re-flag abuse.
+
 ### Content Extraction (content.js)
 
 1. Clones `document.body`
