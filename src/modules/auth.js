@@ -59,7 +59,7 @@ function sleep(ms, signal) {
         clearTimeout(timer);
         reject(new DOMException("Login cancelled", "AbortError"));
       },
-      { once: true },
+      { once: true }
     );
   });
 }
@@ -70,11 +70,13 @@ function positiveSecondsToMs(value, fallback) {
 }
 
 export function toSession(tokens, fallbackRefresh = "") {
-  if (!tokens?.access_token) throw new Error("xAI token response missing access_token");
+  if (!tokens?.access_token)
+    throw new Error("xAI token response missing access_token");
   return {
     accessToken: tokens.access_token,
     refreshToken: tokens.refresh_token || fallbackRefresh,
-    expiresAt: Date.now() + (tokens.expires_in > 0 ? tokens.expires_in : 3600) * 1000,
+    expiresAt:
+      Date.now() + (tokens.expires_in > 0 ? tokens.expires_in : 3600) * 1000,
   };
 }
 
@@ -101,7 +103,7 @@ async function requestDeviceCode(signal) {
   });
   if (!response.ok) {
     throw new Error(
-      `xAI device code request failed (${response.status}): ${await readError(response)}`,
+      `xAI device code request failed (${response.status}): ${await readError(response)}`
     );
   }
   const device = await response.json();
@@ -112,10 +114,11 @@ async function requestDeviceCode(signal) {
 }
 
 async function pollDeviceCodeToken(device, signal) {
-  const deadline = Date.now() + positiveSecondsToMs(device.expires_in, DEFAULT_EXPIRES_MS);
+  const deadline =
+    Date.now() + positiveSecondsToMs(device.expires_in, DEFAULT_EXPIRES_MS);
   let intervalMs = Math.max(
     positiveSecondsToMs(device.interval, DEFAULT_INTERVAL_MS),
-    MIN_INTERVAL_MS,
+    MIN_INTERVAL_MS
   );
 
   while (Date.now() < deadline) {
@@ -138,14 +141,17 @@ async function pollDeviceCodeToken(device, signal) {
       intervalMs += SLOW_DOWN_MS;
       continue;
     }
-    if (body.error === "access_denied" || body.error === "authorization_denied") {
+    if (
+      body.error === "access_denied" ||
+      body.error === "authorization_denied"
+    ) {
       throw new Error("SuperGrok authorization was denied");
     }
     if (body.error === "expired_token") {
       throw new Error("SuperGrok device code expired. Sign in again.");
     }
     throw new Error(
-      `xAI device token exchange failed (${response.status}): ${body.error_description || body.error || ""}`,
+      `xAI device token exchange failed (${response.status}): ${body.error_description || body.error || ""}`
     );
   }
   throw new Error("SuperGrok authorization timed out");
@@ -176,7 +182,7 @@ export async function refreshAccessToken(refreshToken) {
       error?.message || "xAI token refresh failed",
       0,
       "",
-      true,
+      true
     );
   }
   if (!response.ok) {
@@ -189,7 +195,9 @@ export async function refreshAccessToken(refreshToken) {
     }
     const code = typeof body.error === "string" ? body.error : "";
     const transient =
-      response.status === 408 || response.status === 429 || response.status >= 500;
+      response.status === 408 ||
+      response.status === 429 ||
+      response.status >= 500;
     const detail = body.error_description || code || text;
     const message =
       response.status === 403
@@ -203,15 +211,15 @@ export async function refreshAccessToken(refreshToken) {
 export function sessionIsFresh(session) {
   return Boolean(
     session?.accessToken &&
-      session.expiresAt &&
-      session.expiresAt - Date.now() > REFRESH_SKEW_MS,
+    session.expiresAt &&
+    session.expiresAt - Date.now() > REFRESH_SKEW_MS
   );
 }
 
 export async function refreshAndStore(session) {
   const next = toSession(
     await refreshAccessToken(session.refreshToken),
-    session.refreshToken,
+    session.refreshToken
   );
   await chrome.storage.local.set({ xaiOAuth: next });
   return next;
@@ -224,7 +232,7 @@ export async function ensureFreshSession(session) {
       "SuperGrok session expired. Sign in again, or enter an API key.",
       401,
       "invalid_grant",
-      false,
+      false
     );
   }
   // Assign before the first await so overlapping upload + send share one POST.
@@ -240,7 +248,7 @@ export async function ensureFreshSession(session) {
           "SuperGrok session expired. Sign in again, or enter an API key.",
           401,
           "invalid_grant",
-          false,
+          false
         );
       }
       return refreshAndStore(current);
@@ -258,7 +266,11 @@ async function fallBackToApiKey() {
 }
 
 export async function getBearerToken() {
-  const data = await chrome.storage.local.get(["authMode", "xaiOAuth", "xaiApiKey"]);
+  const data = await chrome.storage.local.get([
+    "authMode",
+    "xaiOAuth",
+    "xaiApiKey",
+  ]);
   const mode = data.authMode || AUTH_MODE_API_KEY;
   if (mode === AUTH_MODE_OAUTH) {
     if (!data.xaiOAuth?.accessToken) {
@@ -270,7 +282,7 @@ export async function getBearerToken() {
         "SuperGrok session expired. Sign in again, or enter an API key.",
         401,
         "invalid_grant",
-        false,
+        false
       );
     }
     try {

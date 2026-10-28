@@ -24,8 +24,8 @@ export async function uploadFile(apiKey, file, { oauth = false } = {}) {
         response.status,
         errorData,
         `File upload failed with status ${response.status}`,
-        { oauth },
-      ),
+        { oauth }
+      )
     );
   }
 

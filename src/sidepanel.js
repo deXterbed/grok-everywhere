@@ -46,7 +46,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   let currentContent = null;
   let contextMode = "content"; // 'none', 'content', 'screenshot'
   let isShortcutMode = false;
-  let lastAutoScreenshot = null; // Track auto mode screenshot separately
+
   let pendingAttachments = []; // Image attachments (dataURLs) staged for the next message
   let pendingFiles = []; // Non-image file attachments staged for the next message
   let fileAttachmentCounter = 0;
@@ -475,7 +475,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           faviconEl.src = "icons/grok.png";
         };
       }
-    } catch (e) {
+    } catch (_e) {
       // ignore
     }
   }
@@ -502,7 +502,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     (e) => {
       if (e.deltaY < 0) isUserAtBottom = false;
     },
-    { passive: true },
+    { passive: true }
   );
 
   function setOauthPending(device) {
@@ -572,7 +572,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         setOauthPending(device);
         addMessage(
           `SuperGrok sign-in: enter ${device.user_code} at ${device.verification_uri}`,
-          false,
+          false
         );
       });
       setOauthPending(null);
@@ -617,11 +617,15 @@ document.addEventListener("DOMContentLoaded", async () => {
   document.documentElement.dataset.theme = savedTheme;
   // Chat completions rejects this id with HTTP 400. A saved pick must not be sent.
   const removedModel = "grok-4.20-multi-agent-0309";
-  if (result.textModel && result.textModel !== removedModel) textModel = result.textModel;
+  if (result.textModel && result.textModel !== removedModel)
+    textModel = result.textModel;
   if (result.visionModel && result.visionModel !== removedModel) {
     visionModel = result.visionModel;
   }
-  if (result.textModel === removedModel || result.visionModel === removedModel) {
+  if (
+    result.textModel === removedModel ||
+    result.visionModel === removedModel
+  ) {
     chrome.storage.local.set({ textModel, visionModel });
   }
 
@@ -786,7 +790,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
       if (result[`conversationHistory_${tabId}`]) {
         conversationHistory = limitMessageHistory(
-          result[`conversationHistory_${tabId}`],
+          result[`conversationHistory_${tabId}`]
         );
         // Restore the conversation UI
         conversationHistory.forEach((msg) => {
@@ -804,13 +808,13 @@ document.addEventListener("DOMContentLoaded", async () => {
       // Tab switching completed
 
       console.log(
-        `Switched to tab ${tabId}, loaded ${conversationHistory.length} messages`,
+        `Switched to tab ${tabId}, loaded ${conversationHistory.length} messages`
       );
     } catch (error) {
       // Handle cases where tab doesn't exist or other errors
       if (error.message && error.message.includes("No tab with id")) {
         console.log(
-          `Tab ${tabId} no longer exists, resetting to current active tab`,
+          `Tab ${tabId} no longer exists, resetting to current active tab`
         );
         // Reset to the currently active tab
         try {
@@ -906,10 +910,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   // Function to handle message sending
   async function handleMessageSend() {
     if (currentAbortController) return;
-    if (
-      pendingAttachments.length === 0 &&
-      pendingFiles.length === 0
-    ) {
+    if (pendingAttachments.length === 0 && pendingFiles.length === 0) {
       return;
     }
     let oauth = false;
@@ -921,10 +922,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       return;
     }
     if (!apiKey) {
-      addMessage(
-        "[!] Sign in with SuperGrok or enter an xAI API key.",
-        false,
-      );
+      addMessage("[!] Sign in with SuperGrok or enter an xAI API key.", false);
       return;
     }
 
@@ -952,14 +950,14 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (pendingFileEntries.length > 0) {
         showContextLoading("Uploading files...");
         await Promise.all(
-          pendingFileEntries.map((f) => f.uploadPromise).filter(Boolean),
+          pendingFileEntries.map((f) => f.uploadPromise).filter(Boolean)
         );
       }
       const filesToSend = pendingFileEntries
         .filter((f) => f.status === "uploaded")
         .map((f) => ({ name: f.name, fileId: f.fileId }));
       const failedFiles = pendingFileEntries.filter(
-        (f) => f.status === "error",
+        (f) => f.status === "error"
       );
       if (failedFiles.length > 0) {
         pendingFiles = pendingFiles.concat(failedFiles);
@@ -978,7 +976,6 @@ document.addEventListener("DOMContentLoaded", async () => {
           // Auto mode: take new screenshot
           showContextLoading("Taking screenshot...");
           screenshotToSend = await takeScreenshot();
-          lastAutoScreenshot = screenshotToSend;
         }
       } else if (contextMode === "content") {
         if (isShortcutMode && currentContent) {
@@ -996,11 +993,11 @@ document.addEventListener("DOMContentLoaded", async () => {
             hideTypingIndicator(
               contextMode === "screenshot"
                 ? getVisionModelLabel()
-                : getTextModelLabel(),
+                : getTextModelLabel()
             );
             addMessage(
               `[!] Content extraction not available: ${availability.reason}.`,
-              false,
+              false
             );
             return;
           }
@@ -1020,11 +1017,11 @@ document.addEventListener("DOMContentLoaded", async () => {
             hideTypingIndicator(
               contextMode === "screenshot"
                 ? getVisionModelLabel()
-                : getTextModelLabel(),
+                : getTextModelLabel()
             );
             addMessage(
               "⚠ Content extraction failed. The page might be protected, not fully loaded, or the content script isn't available. Try refreshing the page or using a different context mode.",
-              false,
+              false
             );
             return;
           }
@@ -1048,11 +1045,11 @@ document.addEventListener("DOMContentLoaded", async () => {
       showTypingIndicator(model);
 
       await sendMessage(message, images, contentToSend, filesToSend, oauth);
-    } catch (error) {
+    } catch (_error) {
       // If sending fails, restore the attachments so the user doesn't lose them
       pendingAttachments = attachmentsToSend;
       const uploadedFileEntries = pendingFileEntries.filter(
-        (f) => f.status === "uploaded",
+        (f) => f.status === "uploaded"
       );
       if (uploadedFileEntries.length > 0) {
         pendingFiles = pendingFiles.concat(uploadedFileEntries);
@@ -1074,7 +1071,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           ? getFileModelLabel()
           : contextMode === "screenshot"
             ? getVisionModelLabel()
-            : getTextModelLabel(),
+            : getTextModelLabel()
       );
     }
   }
@@ -1142,9 +1139,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const settingsApiSave = document.getElementById("settings-api-save");
   const settingsOllamaInput = document.getElementById("settings-ollama-input");
   const settingsOllamaSave = document.getElementById("settings-ollama-save");
-  const webSearchToggle = document.getElementById(
-    "settings-web-search-toggle",
-  );
+  const webSearchToggle = document.getElementById("settings-web-search-toggle");
 
   function openSettings() {
     settingsApiInput.value = storedApiKey || "";
@@ -1223,13 +1218,17 @@ document.addEventListener("DOMContentLoaded", async () => {
     await chrome.storage.local.set({ webSearchEnabled });
   });
 
-  document.getElementById("oauth-login").addEventListener("click", runDeviceLogin);
-  document.getElementById("oauth-logout").addEventListener("click", async () => {
-    await logoutOAuth();
-    authMode = AUTH_MODE_API_KEY;
-    apiKey = storedApiKey;
-    applyAuthenticatedUi();
-  });
+  document
+    .getElementById("oauth-login")
+    .addEventListener("click", runDeviceLogin);
+  document
+    .getElementById("oauth-logout")
+    .addEventListener("click", async () => {
+      await logoutOAuth();
+      authMode = AUTH_MODE_API_KEY;
+      apiKey = storedApiKey;
+      applyAuthenticatedUi();
+    });
 
   document.querySelectorAll(".theme-btn").forEach((btn) => {
     btn.addEventListener("click", async () => {
@@ -1272,7 +1271,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
 
   // Listen for context messages (from shortcut)
-  chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  chrome.runtime.onMessage.addListener((request, _sender, _sendResponse) => {
     if (request.action === "addScreenshotContext") {
       if (contextMode === "screenshot") {
         showContextLoading("Processing screenshot...");
@@ -1561,7 +1560,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     isUser,
     images = null,
     model = null,
-    files = null,
+    files = null
   ) {
     const wrapperDiv = document.createElement("div");
     wrapperDiv.className = `message-wrapper${isUser ? " user" : ""}`;

@@ -48,7 +48,7 @@ Sidepanel (sidepanel.js) ←→ Background (background.js) ←→ Content Script
 
 The side panel is opened **per tab**, not globally. Key constraints (learned the hard way):
 
-- **No `side_panel` key in `manifest.json`.** A `side_panel.default_path` registers the panel *globally*, so it appears on every tab — `onActivated`/`enabled:false` toggling cannot reliably override it. Omit the manifest key entirely.
+- **No `side_panel` key in `manifest.json`.** A `side_panel.default_path` registers the panel _globally_, so it appears on every tab — `onActivated`/`enabled:false` toggling cannot reliably override it. Omit the manifest key entirely.
 - The panel path is set only per tab in `background.js` on `chrome.action.onClicked`: `setOptions({ tabId, path: "sidepanel.html", enabled: true })` then `open({ tabId })`. With no global default, tabs you never opened it on simply show no panel, and Chrome remembers the per-tab enabled state so it reappears when you return.
 - **`setOptions()` and `open()` must run synchronously** in the click handler — no `await` before `open()`, or Chrome rejects it with "`sidePanel.open()` may only be called in response to a user gesture." Use `.catch()` for error handling, not `try/await`.
 
@@ -56,11 +56,11 @@ The side panel is opened **per tab**, not globally. Key constraints (learned the
 
 The sidepanel has 3 context modes, cycled by clicking the context button:
 
-| Mode | Model | Behavior |
-|---|---|---|
-| `none` | selected text model | No page context sent |
-| `content` | selected text model | Extracts page text content and prepends to messages. Has `fetch_url` tool. |
-| `screenshot` | selected vision model | Takes a tab screenshot and sends as image |
+| Mode         | Model                 | Behavior                                                                   |
+| ------------ | --------------------- | -------------------------------------------------------------------------- |
+| `none`       | selected text model   | No page context sent                                                       |
+| `content`    | selected text model   | Extracts page text content and prepends to messages. Has `fetch_url` tool. |
+| `screenshot` | selected vision model | Takes a tab screenshot and sends as image                                  |
 
 The actual model is user-selectable in Settings (text model + vision model), not hardcoded per mode. Choices are defined in `TEXT_MODELS`/`VISION_MODELS` in `sidepanel.js` and persisted to `chrome.storage.local` (`textModel`/`visionModel`). `api.js` sends the chosen model ID directly and gates image input via `modelSupportsVision(modelId)`.
 
@@ -90,16 +90,16 @@ Both attachment kinds flow end-to-end alongside `images`: `sidepanel.js` → `ap
 Optional device-code login beside the API key. `authMode` is `api_key` (default) or `oauth`. The access token is sent as `Authorization: Bearer` on the existing `api.x.ai` calls. `getBearerToken()` returns `{ token, oauth }` for the credential it actually handed back.
 
 - **Refresh fallback is auth-failure only.** `isAuthRefreshFailure` is true for `invalid_grant` / `invalid_token` / `invalid_client`, or HTTP 401/403. Only then does a saved `xaiApiKey` replace the session (`authMode: "api_key"`, `xaiOAuth` removed). Network errors, 408, 429, and 5xx throw and leave `authMode` and `xaiOAuth` alone, so Sign out stays available. Do not catch every refresh error and downgrade.
-- **One refresh at a time — but only within one panel.** `ensureFreshSession` assigns `refreshInFlight` before its first await, so a file upload and a send in the same side panel share one POST. It is *not* global: the panel is a separate document per tab, so two tabs with panels open each refresh independently, the rotated refresh token makes the loser `invalid_grant`, and the fallback rule below then drops the session. Serialize refresh in the background worker, or re-read storage after an `invalid_grant` and use the rotated pair if it changed, before deleting anything.
+- **One refresh at a time — but only within one panel.** `ensureFreshSession` assigns `refreshInFlight` before its first await, so a file upload and a send in the same side panel share one POST. It is _not_ global: the panel is a separate document per tab, so two tabs with panels open each refresh independently, the rotated refresh token makes the loser `invalid_grant`, and the fallback rule below then drops the session. Serialize refresh in the background worker, or re-read storage after an `invalid_grant` and use the rotated pair if it changed, before deleting anything.
 - **403 entitlement copy is keyed off `oauth`, not token shape.** `parseHttpError(status, body, fallback, { oauth })` returns `OAUTH_403_MESSAGE` only when the caller says this request used an OAuth access token. An opaque token is still OAuth. An API key that happens to contain two dots is not. Thread the flag from `getBearerToken().oauth` through `fetchStreamingReply`, `uploadFile`, and `fetchFileResponse`. Ollama's `web_search` path does not use `parseHttpError`.
 - **Host permissions.** `https://auth.x.ai/*` and `https://accounts.x.ai/*` are covered by `<all_urls>`. `privacy.md` still names those hosts because the extension contacts them. Device-code only — the public client is registered to `127.0.0.1:56121`, which this extension cannot bind.
 - **Expiry is assumed, not decoded.** `toSession` uses the token response's `expires_in`, falling back to 3600 s. xAI device-code tokens can be far shorter than that and do not always return `expires_in`, so a stale token can be treated as fresh; there is also no reactive refresh on a 401 from `api.x.ai`, only the pre-flight check. Decoding the access token's `exp` claim (unverified) is the cheap fix.
 - **The fallback changes billing silently.** A rejected refresh moves the user onto their saved API key — pay-per-token instead of their subscription — with no user-visible notice (only the Settings label flips). If that ever bites, add a one-line message where `fallBackToApiKey()` is reached.
 - **Device-code facts, verified live without an account.** `POST https://auth.x.ai/oauth2/device/code` returns 200 with `verification_uri: https://accounts.x.ai/oauth2/device`, `expires_in: 1800`, `interval: 5`. Polling the token endpoint before approval returns **HTTP 400** `{"error":"authorization_pending"}`, so the pending branch must be read from the body after checking `response.ok`, not inferred from the status. Whether `api.x.ai` accepts a subscription bearer is still unverified here — other projects report a 402/403 tier gate and use the Grok CLI proxy (`cli-chat-proxy.grok.com`) instead.
 
-**`fetch_url` tool gating — don't reuse `supportsVision` for this.** `grok-4.3` is xAI's flagship model and is the *default* for both `textModel` and `visionModel` (`TEXT_MODELS`/`VISION_MODELS` in `sidepanel.js`), so `modelSupportsVision(model)` returns `true` even in a plain-text conversation with zero images attached. `fetchStreamingReply` (`api.js`) previously gated the `fetch_url` tool on `supportsVision`, which silently stripped the tool from every request on the default model — the model would then respond with a canned "I can't browse the web" instead of fetching anything, with no error surfaced anywhere. Tool/URL-fetch availability must be gated on `hasImagesThisTurn` (whether `images` is actually non-empty *this turn*), not on whether the selected model is merely vision-*capable*. `supportsVision` stays correct for the image-content-type decisions (whether to render `image_url` parts) — the bug was specifically conflating "model can do vision" with "this request is a vision request."
+**`fetch_url` tool gating — don't reuse `supportsVision` for this.** `grok-4.3` is xAI's flagship model and is the _default_ for both `textModel` and `visionModel` (`TEXT_MODELS`/`VISION_MODELS` in `sidepanel.js`), so `modelSupportsVision(model)` returns `true` even in a plain-text conversation with zero images attached. `fetchStreamingReply` (`api.js`) previously gated the `fetch_url` tool on `supportsVision`, which silently stripped the tool from every request on the default model — the model would then respond with a canned "I can't browse the web" instead of fetching anything, with no error surfaced anywhere. Tool/URL-fetch availability must be gated on `hasImagesThisTurn` (whether `images` is actually non-empty _this turn_), not on whether the selected model is merely vision-_capable_. `supportsVision` stays correct for the image-content-type decisions (whether to render `image_url` parts) — the bug was specifically conflating "model can do vision" with "this request is a vision request."
 
-Separately: forcing `tool_choice` to a named function (`{ type: "function", function: { name: "fetch_url" } }`) to make the model call fetch_url was tried and **did not reliably work** — the model streamed acknowledgment text ("I'll read that... one moment") without ever emitting a `tool_calls` delta, silently doing nothing. Don't rely on forced `tool_choice` for this; instead `fetchStreamingReply` now deterministically extracts a URL from the user's message client-side (`extractFirstUrl()`) and fetches it via `fetchUrl()` *before* calling the model at all, injecting the content as context. The `fetch_url` tool is still offered (`tool_choice: "auto"`) as a fallback for URLs the model encounters indirectly (e.g. referenced from earlier turns), but the primary "read this URL" case no longer depends on the model choosing to call anything.
+Separately: forcing `tool_choice` to a named function (`{ type: "function", function: { name: "fetch_url" } }`) to make the model call fetch_url was tried and **did not reliably work** — the model streamed acknowledgment text ("I'll read that... one moment") without ever emitting a `tool_calls` delta, silently doing nothing. Don't rely on forced `tool_choice` for this; instead `fetchStreamingReply` now deterministically extracts a URL from the user's message client-side (`extractFirstUrl()`) and fetches it via `fetchUrl()` _before_ calling the model at all, injecting the content as context. The `fetch_url` tool is still offered (`tool_choice: "auto"`) as a fallback for URLs the model encounters indirectly (e.g. referenced from earlier turns), but the primary "read this URL" case no longer depends on the model choosing to call anything.
 
 **The injected page content is context, not the scope of the answer.** Left to itself, the model treats the extract as a closed corpus and answers "the page/blog doesn't say whether X" instead of searching — e.g. asked whether Ollama is profitable with a blog post attached, it listed the post's funding bullets and stopped. `fetchStreamingReply` therefore states the rule in two places: the system prompt (`contentRule`, built once from `searchOn`) and the injected page-content user message itself, which also notes the extract is **truncated** (see Content Extraction — 8000 chars), so absence there is not evidence. With `searchOn` the rule is "must call `web_search` and answer from results, never substitute 'the page doesn't say' for an answer"; without it, "answer from your own knowledge" instead (there is no search tool to call). `WEB_SEARCH_TOOL`'s description names this case too. When search is off or unconfigured this is prompt-only behavior with no tool fallback — don't expect a search without a key.
 
@@ -168,10 +168,10 @@ While generating, `currentAbortController` is set and the send button becomes a 
 
 ### Keyboard Shortcuts
 
-| Shortcut | Action |
-|---|---|
+| Shortcut                   | Action                                |
+| -------------------------- | ------------------------------------- |
 | Ctrl+Shift+C / Cmd+Shift+C | Extract page content and send to Grok |
-| Ctrl+Shift+S / Cmd+Shift+S | Take screenshot and send to Grok |
+| Ctrl+Shift+S / Cmd+Shift+S | Take screenshot and send to Grok      |
 
 ## Development
 
@@ -209,13 +209,13 @@ Version lives in **two** files that must be kept in sync: `package.json` and `sr
 
 ## Commands
 
-| Script | Description |
-|---|---|
-| `npm run dev` | Watch mode rebuild |
-| `npm run build` | Production build |
-| `npm run zip` | Package dist/ for Chrome Web Store |
-| `npm run clean` | Delete dist/ |
-| `npm test` | Node built-in test runner (`node --test`) for markdown, web search, auth, storage, and tooling self-checks |
+| Script          | Description                                                                                                |
+| --------------- | ---------------------------------------------------------------------------------------------------------- |
+| `npm run dev`   | Watch mode rebuild                                                                                         |
+| `npm run build` | Production build                                                                                           |
+| `npm run zip`   | Package dist/ for Chrome Web Store                                                                         |
+| `npm run clean` | Delete dist/                                                                                               |
+| `npm test`      | Node built-in test runner (`node --test`) for markdown, web search, auth, storage, and tooling self-checks |
 
 ## Key Dependencies
 

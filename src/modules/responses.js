@@ -32,8 +32,8 @@ async function callResponsesApi(apiKey, input, oauth, signal = undefined) {
         response.status,
         errorData,
         `API request failed with status ${response.status}`,
-        { oauth },
-      ),
+        { oauth }
+      )
     );
   }
   return response;
@@ -43,7 +43,7 @@ export async function readResponsesStream(
   response,
   streamingMessageId,
   onStream,
-  abortArg,
+  abortArg
 ) {
   // Accept an AbortSignal, an AbortController, or an object containing one.
   let signal = undefined;
@@ -150,12 +150,12 @@ export async function fetchFileResponse({
       if (msg.content) parts.push({ type: "input_text", text: msg.content });
       if (msg.images && msg.images.length) {
         msg.images.forEach((img) =>
-          parts.push({ type: "input_image", image_url: img }),
+          parts.push({ type: "input_image", image_url: img })
         );
       }
       if (msg.files && msg.files.length) {
         msg.files.forEach((f) =>
-          parts.push({ type: "input_file", file_id: f.fileId }),
+          parts.push({ type: "input_file", file_id: f.fileId })
         );
       }
       input.push({ role: "user", content: parts });
@@ -173,13 +173,13 @@ export async function fetchFileResponse({
       apiKey,
       input,
       oauth,
-      resolvedSignal,
+      resolvedSignal
     );
     lastContent = await readResponsesStream(
       response,
       streamingMessageId,
       onStream,
-      resolvedSignal,
+      resolvedSignal
     );
     return lastContent;
   } catch (err) {

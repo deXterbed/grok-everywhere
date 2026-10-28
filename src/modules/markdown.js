@@ -29,16 +29,13 @@ export function parseMarkdown(text) {
   // currency ("$5–$10", "between $5 and $10") — not math. The old naive
   // /\$(.+?)\$/ made "$5–$10" math out of "5–", corrupting the answer and
   // making KaTeX log "Unrecognized Unicode character" for the en dash.
-  text = text.replace(
-    /\$(?!\s)([^$\n]+?)(?<!\s)\$(?!\d)/g,
-    (match, math) => {
-      inlineMathBlocks.push(math);
-      return `%%INLINEMATH_${inlineMathBlocks.length - 1}%%`;
-    },
-  );
+  text = text.replace(/\$(?!\s)([^$\n]+?)(?<!\s)\$(?!\d)/g, (match, math) => {
+    inlineMathBlocks.push(math);
+    return `%%INLINEMATH_${inlineMathBlocks.length - 1}%%`;
+  });
   text = text.replace(
     /%%CODESEG_(\d+)%%/g,
-    (match, index) => codeSegments[parseInt(index)] ?? match,
+    (match, index) => codeSegments[parseInt(index)] ?? match
   );
 
   // Escape HTML first to prevent XSS
@@ -61,7 +58,9 @@ export function parseMarkdown(text) {
     const languageClass = codeBlockLanguage
       ? ` class="language-${codeBlockLanguage}"`
       : "";
-    processedLines.push(`<pre><code${languageClass}>${codeContent}</code></pre>`);
+    processedLines.push(
+      `<pre><code${languageClass}>${codeContent}</code></pre>`
+    );
     inCodeBlock = false;
     codeBlockContent = [];
     codeBlockLanguage = "";
@@ -73,7 +72,7 @@ export function parseMarkdown(text) {
       r
         .split("|")
         .slice(1, -1)
-        .map((c) => c.trim()),
+        .map((c) => c.trim())
     );
     const isSep = (row) => row.every((c) => /^[\-:]+$/.test(c));
     const headers = parsed[0];

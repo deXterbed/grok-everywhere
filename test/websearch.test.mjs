@@ -3,7 +3,14 @@ import assert from "node:assert/strict";
 import { importSrcModules } from "../scripts/load-src.mjs";
 
 const { api } = await importSrcModules(["auth", "api"]);
-const { formatSearchResults, readStream, extractFirstUrl, modelSupportsVision, MAX_SNIPPET_CHARS, MAX_RESULTS_CHARS } = api;
+const {
+  formatSearchResults,
+  readStream,
+  extractFirstUrl,
+  modelSupportsVision,
+  MAX_SNIPPET_CHARS,
+  MAX_RESULTS_CHARS,
+} = api;
 
 function fakeResponse(chunks) {
   const enc = new TextEncoder();
@@ -32,11 +39,17 @@ describe("web search formatting", () => {
 
   it("caps snippets and total output", () => {
     const results = [
-      { title: "Ollama", url: "https://ollama.com/", content: "Cloud models..." },
+      {
+        title: "Ollama",
+        url: "https://ollama.com/",
+        content: "Cloud models...",
+      },
       { title: "", url: "https://b.example/", content: "x".repeat(1500) },
     ];
     const out = formatSearchResults(results);
-    assert.ok(out.startsWith("1. Ollama — https://ollama.com/\nCloud models..."));
+    assert.ok(
+      out.startsWith("1. Ollama — https://ollama.com/\nCloud models...")
+    );
     assert.ok(out.includes("2. Untitled — https://b.example/"));
     assert.ok(out.length < 2100, "per-result snippet must be capped");
 
@@ -45,7 +58,10 @@ describe("web search formatting", () => {
       url: `https://e/${i}`,
       content: "y".repeat(1000),
     }));
-    assert.ok(formatSearchResults(many).length <= MAX_RESULTS_CHARS, "total output must be capped");
+    assert.ok(
+      formatSearchResults(many).length <= MAX_RESULTS_CHARS,
+      "total output must be capped"
+    );
     assert.ok(MAX_SNIPPET_CHARS === 1000);
     assert.ok(MAX_RESULTS_CHARS === 8000);
   });
@@ -53,7 +69,10 @@ describe("web search formatting", () => {
 
 describe("tool execution helpers", () => {
   it("extracts first url and strips trailing punctuation", () => {
-    assert.equal(extractFirstUrl("See https://example.com/path."), "https://example.com/path");
+    assert.equal(
+      extractFirstUrl("See https://example.com/path."),
+      "https://example.com/path"
+    );
     assert.equal(extractFirstUrl("no url here"), null);
   });
 
@@ -69,13 +88,19 @@ describe("tool execution helpers", () => {
       'data: {"choices":[{"delta":{"tool_calls":[{"index":1,"id":"call-2","function":{"name":"fetch_url","arguments":"{\\"url\\":\\"https://example.com\\"}"}}]}}]}\n',
       "data: [DONE]\n",
     ];
-    const { toolCalls } = await readStream(fakeResponse(sseChunks), "test", () => {});
+    const { toolCalls } = await readStream(
+      fakeResponse(sseChunks),
+      "test",
+      () => {}
+    );
     assert.equal(toolCalls.length, 2, "parallel tool calls must not be merged");
     assert.equal(toolCalls[0].id, "call-1");
     assert.equal(toolCalls[0].name, "web_search");
     assert.deepEqual(JSON.parse(toolCalls[0].args), { query: "glm-5.3 flash" });
     assert.equal(toolCalls[1].id, "call-2");
     assert.equal(toolCalls[1].name, "fetch_url");
-    assert.deepEqual(JSON.parse(toolCalls[1].args), { url: "https://example.com" });
+    assert.deepEqual(JSON.parse(toolCalls[1].args), {
+      url: "https://example.com",
+    });
   });
 });

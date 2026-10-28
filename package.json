@@ -5,13 +5,19 @@
   "description": "Grok in your browser sidepanel — Chrome Extension",
   "scripts": {
     "dev": "node scripts/build.mjs --watch",
-    "build": "node scripts/build.mjs",
+    "build": "npm run lint && node scripts/build.mjs",
     "zip": "node scripts/zip.mjs",
     "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true});console.log('dist/ cleaned')\"",
-    "test": "node --test --experimental-test-coverage"
+    "lint": "eslint . && prettier --check .",
+    "format": "prettier --write .",
+    "test": "npm run lint && node --test --experimental-test-coverage"
   },
   "devDependencies": {
-    "esbuild": "^0.25.4"
+    "esbuild": "^0.25.4",
+    "eslint": "9.39.5",
+    "eslint-config-prettier": "10.1.8",
+    "globals": "15.15.0",
+    "prettier": "3.9.10"
   },
   "dependencies": {
     "katex": "^0.17.0"

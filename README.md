@@ -63,10 +63,10 @@ A powerful Chrome extension that brings xAI's Grok AI assistant directly into yo
 
 ## ⌨️ Keyboard Shortcuts
 
-| Shortcut | Action |
-|---|---|
+| Shortcut                                | Action                                |
+| --------------------------------------- | ------------------------------------- |
 | **Ctrl+Shift+C** (Mac: **Cmd+Shift+C**) | Extract page content and send to Grok |
-| **Ctrl+Shift+S** (Mac: **Cmd+Shift+S**) | Take screenshot and send to Grok |
+| **Ctrl+Shift+S** (Mac: **Cmd+Shift+S**) | Take screenshot and send to Grok      |
 
 ## 🛠️ Development
 
@@ -85,16 +85,17 @@ npm install
 
 ### Build Commands
 
-| Command | Description |
-|---|---|
-| `npm run dev` | Watch mode — rebuilds on file changes |
-| `npm run build` | Production build → `dist/` |
-| `npm run zip` | Package `dist/` for Chrome Web Store |
-| `npm run clean` | Delete the `dist/` directory |
+| Command         | Description                           |
+| --------------- | ------------------------------------- |
+| `npm run dev`   | Watch mode — rebuilds on file changes |
+| `npm run build` | Production build → `dist/`            |
+| `npm run zip`   | Package `dist/` for Chrome Web Store  |
+| `npm run clean` | Delete the `dist/` directory          |
 
 ### Architecture
 
 The extension has three main parts:
+
 - **Sidepanel** (`sidepanel.js`) — the chat UI you interact with
 - **Background worker** (`background.js`) — relays messages, captures screenshots, fetches URLs, runs web searches, opens the side panel per tab
 - **Content script** (`content.js`) — injected into web pages to extract text content

@@ -71,7 +71,15 @@ export function parseHttpError(status, errorData, fallback, options = {}) {
   return parseApiError(errorData, fallback);
 }
 
-async function callApi(apiKey, model, messages, tools, toolChoice = "auto", oauth = false, signal = undefined) {
+async function callApi(
+  apiKey,
+  model,
+  messages,
+  tools,
+  toolChoice = "auto",
+  oauth = false,
+  signal = undefined
+) {
   const body = {
     model,
     messages,
@@ -99,20 +107,31 @@ async function callApi(apiKey, model, messages, tools, toolChoice = "auto", oaut
         response.status,
         errorData,
         `API request failed with status ${response.status}`,
-        { oauth },
-      ),
+        { oauth }
+      )
     );
   }
   return response;
 }
 
-export async function readStream(response, streamingMessageId, onStream, abortArg) {
+export async function readStream(
+  response,
+  streamingMessageId,
+  onStream,
+  abortArg
+) {
   // Accept an AbortSignal, an AbortController, or an object containing one so
   // callers can use whichever shape is convenient.
   let signal = undefined;
   if (abortArg instanceof AbortSignal) signal = abortArg;
-  else if (abortArg && abortArg.signal instanceof AbortSignal) signal = abortArg.signal;
-  else if (abortArg && abortArg.abortController && abortArg.abortController.signal instanceof AbortSignal) signal = abortArg.abortController.signal;
+  else if (abortArg && abortArg.signal instanceof AbortSignal)
+    signal = abortArg.signal;
+  else if (
+    abortArg &&
+    abortArg.abortController &&
+    abortArg.abortController.signal instanceof AbortSignal
+  )
+    signal = abortArg.abortController.signal;
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let fullContent = "";
@@ -124,7 +143,11 @@ export async function readStream(response, streamingMessageId, onStream, abortAr
   const toolCalls = [];
 
   const abortHandler = () => {
-    try { reader.cancel(); } catch { /* ignore */ }
+    try {
+      reader.cancel();
+    } catch {
+      /* ignore */
+    }
   };
   if (signal) {
     if (signal.aborted) abortHandler();
@@ -184,8 +207,7 @@ export async function readStream(response, streamingMessageId, onStream, abortAr
     }
     throw err;
   } finally {
-    if (signal)
-      signal.removeEventListener("abort", abortHandler);
+    if (signal) signal.removeEventListener("abort", abortHandler);
     reader.releaseLock();
   }
 
@@ -197,7 +219,7 @@ async function fetchUrl(url) {
     chrome.runtime.sendMessage({ action: "fetchUrl", url }, (response) => {
       if (chrome.runtime.lastError || response?.error) {
         resolve(
-          `Error fetching URL: ${chrome.runtime.lastError?.message || response?.error}`,
+          `Error fetching URL: ${chrome.runtime.lastError?.message || response?.error}`
         );
       } else {
         resolve(response?.content || "No content found at this URL.");
@@ -220,7 +242,7 @@ export function formatSearchResults(results) {
   const formatted = results
     .map(
       (r, i) =>
-        `${i + 1}. ${r.title || "Untitled"} — ${r.url}\n${(r.content || "").slice(0, MAX_SNIPPET_CHARS)}`,
+        `${i + 1}. ${r.title || "Untitled"} — ${r.url}\n${(r.content || "").slice(0, MAX_SNIPPET_CHARS)}`
     )
     .join("\n\n");
   return formatted.slice(0, MAX_RESULTS_CHARS);
@@ -230,7 +252,7 @@ async function webSearch(query, maxResults, ollamaApiKey) {
   const response = await new Promise((resolve) => {
     chrome.runtime.sendMessage(
       { action: "webSearch", query, maxResults, apiKey: ollamaApiKey },
-      (r) => resolve(r),
+      (r) => resolve(r)
     );
   });
   if (chrome.runtime.lastError || response?.error) {
@@ -379,6 +401,17 @@ export async function fetchStreamingReply({
       ? [FETCH_URL_TOOL, WEB_SEARCH_TOOL]
       : [FETCH_URL_TOOL];
 
+  const resolvedSignal =
+    signal instanceof AbortSignal
+      ? signal
+      : abortSignal instanceof AbortSignal
+        ? abortSignal
+        : abortController && abortController.signal instanceof AbortSignal
+          ? abortController.signal
+          : controller && controller.signal instanceof AbortSignal
+            ? controller.signal
+            : undefined;
+
   // Tool loop: each round either produces the final answer or requests
   // tool call(s), whose results are appended before the next call — so the
   // model can chain (e.g. web_search, then fetch_url on a result link).
@@ -387,12 +420,20 @@ export async function fetchStreamingReply({
   let lastContent = "";
   try {
     for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
-      const response = await callApi(apiKey, model, messages, tools, "auto", oauth, resolvedSignal);
+      const response = await callApi(
+        apiKey,
+        model,
+        messages,
+        tools,
+        "auto",
+        oauth,
+        resolvedSignal
+      );
       const { content, toolCalls } = await readStream(
         response,
         streamingMessageId,
         onStream,
-        resolvedSignal,
+        resolvedSignal
       );
       lastContent = content;
 
@@ -437,7 +478,8 @@ export async function fetchStreamingReply({
       });
     }
   } catch (err) {
-    if (resolvedSignal?.aborted || err?.name === "AbortError") return lastContent;
+    if (resolvedSignal?.aborted || err?.name === "AbortError")
+      return lastContent;
     throw err;
   }
   return lastContent;

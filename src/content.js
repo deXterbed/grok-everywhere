@@ -6,7 +6,7 @@ function extractPageContent() {
 
     // Remove script and style elements from the clone only
     const elementsToRemove = bodyClone.querySelectorAll(
-      "script, style, noscript, iframe, embed, object, nav, header, footer, .nav, .header, .footer, .sidebar, .menu",
+      "script, style, noscript, iframe, embed, object, nav, header, footer, .nav, .header, .footer, .sidebar, .menu"
     );
     elementsToRemove.forEach((el) => {
       if (el.parentNode) {
@@ -126,7 +126,7 @@ if (!window.__grokContentScriptLoaded) {
           if (!content || content.length < 50) {
             console.warn(
               "Content extraction returned insufficient content, length:",
-              content ? content.length : 0,
+              content ? content.length : 0
             );
             sendResponse({
               content: null,
@@ -150,6 +150,6 @@ if (!window.__grokContentScriptLoaded) {
         sendResponse({ status: "ok" });
         return true;
       }
-    },
+    }
   );
 } // end __grokContentScriptLoaded guard

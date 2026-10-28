@@ -5,11 +5,13 @@ All notable changes to this project will be documented in this file.
 ## [1.9.0] - 2026-10-25
 
 ### Added
+
 - **Optional SuperGrok OAuth**: Sign in with your xAI / SuperGrok account via device-code (public Grok CLI client against `auth.x.ai` / `accounts.x.ai`) as an alternative to an API key. The OAuth bearer is sent to `api.x.ai` on existing chat/file calls. API-key auth remains the default. A rejected refresh token falls back to a saved API key; a network or server error leaves the SuperGrok session in place. SuperGrok login can succeed and inference can still 403 if the account is not entitled for that API surface — that 403 is shown once with no retry; use an API key.
 - **Grok 4.6**: `grok-4.6` is available in the text and vision model dropdowns. The startup default is unchanged (Grok 4.3).
 - **Grok 4.7**: `grok-4.7` is available in the text and vision model dropdowns. The startup default is unchanged (Grok 4.3).
 
 ### Removed
+
 - **Grok 4.20 Multi-Agent**: `grok-4.20-multi-agent-0309` was removed from the text and vision dropdowns. xAI rejects it on `/v1/chat/completions` (`Multi Agent requests are not allowed on chat completions`). A saved setting that still names it falls back to Grok 4.3. Supporting it requires the Responses API.
 
 ---
@@ -17,9 +19,11 @@ All notable changes to this project will be documented in this file.
 ## [1.8.0] - 2026-09-09
 
 ### Added
+
 - **Web Search (Ollama)**: Grok can now search the live web via Ollama's hosted web search API. Enable it in Settings → Web Search with a free Ollama API key ([ollama.com/settings/keys](https://ollama.com/settings/keys)). The model can chain a search with a URL fetch (e.g. search, then read a result link) and cites source URLs in its answers
 
 ### Fixed
+
 - **Parallel Tool Calls**: Comparison questions made the model emit multiple tool calls in one response; their arguments were merged into corrupt JSON, crashing the reply ("Unexpected non-whitespace character after JSON"). Tool calls are now tracked per stream index and all results are returned together
 - **Send Button Spinner**: The loading spinner on the send button kept spinning after a reply completed; loading state is now fully cleared on every code path
 
@@ -28,10 +32,12 @@ All notable changes to this project will be documented in this file.
 ## [1.7.0] - 2026-07-31
 
 ### Added
+
 - **File Attachments**: Attach non-image files (PDF, text, code, CSV, JSON) alongside images — uploaded to xAI's Files API and read via the Responses API, so Grok can answer questions about their content
 - **Copy Button**: One click to copy any of Grok's replies to your clipboard
 
 ### Fixed
+
 - **`fetch_url` Tool on Default Model**: The URL-reading tool was silently unavailable in plain-text conversations on the default model (Grok 4.3, which is also the default vision model), causing Grok to claim it couldn't browse the web instead of reading a mentioned URL. URLs are now fetched deterministically when mentioned in a message, independent of the model's tool-calling behavior
 
 ---
@@ -39,6 +45,7 @@ All notable changes to this project will be documented in this file.
 ## [1.6.0] - 2026-07-30
 
 ### Added
+
 - **Image Attachments**: Attach images to a message via the paperclip button or by pasting from the clipboard, independent of context mode. Attached images are staged as removable thumbnails and automatically routed to the vision model
 
 ---
@@ -46,11 +53,13 @@ All notable changes to this project will be documented in this file.
 ## [1.5.0] - 2026-06-18
 
 ### Added
+
 - **Selectable Models**: Choose your text and vision models in Settings, persisted across sessions
 - **Screenshot Lightbox**: Click a screenshot in the chat to view it full-size
 - **LaTeX Math Rendering**: Math in responses is rendered with KaTeX
 
 ### Fixed
+
 - **Per-Tab Side Panel**: The side panel now opens only on the tab you click it on instead of globally across all tabs
 - **Light Theme**: Fixed button visibility and the settings panel overlay in light mode
 
@@ -59,6 +68,7 @@ All notable changes to this project will be documented in this file.
 ## [1.4.0] - 2026-05-27
 
 ### Added
+
 - **Settings Panel**: Gear icon opens a dedicated settings view with API key management and dark/light theme toggle
 - **URL Fetching via Tool Calling**: Grok can now read external URLs mentioned in your message using the xAI tool calling API — no extra permissions required
 
@@ -67,10 +77,12 @@ All notable changes to this project will be documented in this file.
 ## [1.3.0] - 2026-05-26
 
 ### Added
+
 - **Quick Action Buttons**: "Summarize this page" and "Suggest questions..." buttons shown in the empty state for one-click prompts
 - **In-Panel Confirm Dialog**: Clearing conversation history now shows a native-feeling dialog inside the panel instead of a browser confirm popup
 
 ### Changed
+
 - Removed the faded logo/placeholder text from the empty state in favour of the quick action buttons
 
 ---
@@ -78,11 +90,13 @@ All notable changes to this project will be documented in this file.
 ## [1.2.0] - 2024-12-19
 
 ### Added
+
 - **Conversation History Context**: Full conversation history is now sent to Grok API for better context and follow-up questions
 - **Clear History Button**: Added trash icon button in top-right corner to clear conversation history with confirmation dialog
 - **Enhanced Error Logging**: Improved API error reporting with minimal, focused logging for better debugging
 
 ### Changed
+
 - **API Request Structure**: Conversation history is now included in API requests for better context awareness
 - **Model-Specific Image Handling**: Smart filtering of image content based on model capabilities (Grok 3 vs Grok Vision)
 
@@ -91,23 +105,27 @@ All notable changes to this project will be documented in this file.
 ## [1.1.0] - 2024-12-19
 
 ### Added
+
 - **Markdown Rendering**: Complete markdown support for Grok responses including headers, code blocks, lists, links, and formatting
 - **Smart Auto-scroll**: Intelligent scroll behavior that respects user reading position while maintaining auto-scroll for new content
 - **Enhanced Code Block Support**: Proper syntax highlighting and language detection for code blocks
 - **Word Wrapping**: Comprehensive text wrapping to prevent content truncation
 
 ### Changed
+
 - **Improved Message Display**: Messages now render with proper HTML formatting instead of plain text
 - **Better Scroll Behavior**: Auto-scroll only occurs when user is at bottom and hasn't manually scrolled up
 - **Enhanced CSS**: Improved styling for all markdown elements with proper spacing and typography
 
 ### Fixed
+
 - **Content Truncation**: Long text and code now wraps properly instead of being cut off
 - **Code Block Parsing**: Language identifiers are properly handled and not displayed as text
 - **Header Rendering**: Markdown headers (####, ###, etc.) are now properly rendered as HTML elements
 - **List Formatting**: Bullet points and numbered lists display correctly with proper indentation
 
 ### Technical Improvements
+
 - **Enhanced Markdown Parser**: Line-by-line processing for better accuracy and proper element handling
 - **Scroll Position Tracking**: Smart detection of user scroll behavior to provide non-intrusive auto-scroll
 - **CSS Optimization**: Added comprehensive word wrapping and box-sizing rules for better text flow
@@ -116,6 +134,7 @@ All notable changes to this project will be documented in this file.
 ---
 
 ## [1.0.2] - Previous Version
+
 - Base functionality with plain text message display
 - Basic auto-scroll behavior
 - Screenshot and content extraction features

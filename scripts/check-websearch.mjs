@@ -27,7 +27,7 @@ const many = Array.from({ length: 9 }, (_, i) => ({
 }));
 assert.ok(
   formatSearchResults(many).length <= 8000,
-  "total output must be capped",
+  "total output must be capped"
 );
 
 // readStream: parallel tool_calls in one response must accumulate per
@@ -61,7 +61,7 @@ const sseChunks = [
 const { toolCalls } = await readStream(
   fakeResponse(sseChunks),
   "test",
-  () => {},
+  () => {}
 );
 assert.equal(toolCalls.length, 2, "parallel tool calls must not be merged");
 assert.equal(toolCalls[0].id, "call-1");

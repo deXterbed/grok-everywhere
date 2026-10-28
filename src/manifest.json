@@ -3,13 +3,7 @@
   "name": "Grok everywhere",
   "version": "1.9.0",
   "description": "Grok in your browser sidepanel",
-  "permissions": [
-    "sidePanel",
-    "storage",
-    "tabs",
-    "scripting",
-    "commands"
-  ],
+  "permissions": ["sidePanel", "storage", "tabs", "scripting", "commands"],
   "action": {
     "default_title": "Open Grok everywhere",
     "default_icon": {
@@ -51,8 +45,5 @@
     "48": "icons/grok.png",
     "128": "icons/grok.png"
   },
-  "host_permissions": [
-    "https://api.x.ai/*",
-    "<all_urls>"
-  ]
+  "host_permissions": ["https://api.x.ai/*", "<all_urls>"]
 }

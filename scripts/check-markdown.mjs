@@ -35,7 +35,10 @@ const mathCount = (html) => (html.match(/<span class="katex">/g) || []).length;
 // KaTeX's "Unrecognized Unicode character" warning for the en dash.
 const currency = [
   ["Costs $5–$10 per month", "$5–$10"],
-  ["Raised between $88 million and $120 million", "$88 million and $120 million"],
+  [
+    "Raised between $88 million and $120 million",
+    "$88 million and $120 million",
+  ],
   ["I paid $5, then $1 more", "$5, then $1"],
 ];
 for (const [text, expected] of currency) {
@@ -67,11 +70,15 @@ assert.equal(mathCount(inline), 0, "inline code must not render as math");
 
 // Code protection must not swallow math outside the code.
 const fenceThenMath = parseMarkdown("```\n$x$\n```\nformula $y^2$");
-assert.equal(mathCount(fenceThenMath), 1, "math after a code block still renders");
+assert.equal(
+  mathCount(fenceThenMath),
+  1,
+  "math after a code block still renders"
+);
 
 // Fenced blocks keep their language hint and render as code.
 const closedFence = parseMarkdown("```js\nconst x = 1;\n```");
-assert.ok(closedFence.includes("<pre><code class=\"language-js\">"), closedFence);
+assert.ok(closedFence.includes('<pre><code class="language-js">'), closedFence);
 
 // A fence with no closing ``` yet (normal mid-stream) must still render its
 // content instead of dropping everything after the opening fence.
@@ -81,7 +88,7 @@ assert.ok(unclosed.includes("const x = 1;"), unclosed);
 assert.equal(
   mathCount(parseMarkdown("```\n$x^2$\n")),
   0,
-  "math inside an unclosed fence stays code",
+  "math inside an unclosed fence stays code"
 );
 
 console.log("check-markdown: all assertions passed");

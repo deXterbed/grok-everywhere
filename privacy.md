@@ -1,6 +1,6 @@
 # Grok Everywhere – Privacy Policy
 
-*Last updated: September 2026*
+_Last updated: September 2026_
 
 ## What data is collected
 

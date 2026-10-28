@@ -14,22 +14,19 @@ export async function extractPageContent() {
   try {
     const response = await Promise.race([
       new Promise((resolve) => {
-        chrome.runtime.sendMessage(
-          { action: "extractContent" },
-          (response) => {
-            if (chrome.runtime.lastError) {
-              console.error("Runtime error:", chrome.runtime.lastError);
-              resolve({
-                content: null,
-                error: chrome.runtime.lastError.message,
-              });
-            } else {
-              resolve(
-                response || { content: null, error: "No response received" },
-              );
-            }
-          },
-        );
+        chrome.runtime.sendMessage({ action: "extractContent" }, (response) => {
+          if (chrome.runtime.lastError) {
+            console.error("Runtime error:", chrome.runtime.lastError);
+            resolve({
+              content: null,
+              error: chrome.runtime.lastError.message,
+            });
+          } else {
+            resolve(
+              response || { content: null, error: "No response received" }
+            );
+          }
+        });
       }),
       new Promise((resolve) => {
         setTimeout(() => {

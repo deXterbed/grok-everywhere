@@ -15,7 +15,7 @@ export function createContext({
     imageButton.classList.remove("active", "content-mode", "screenshot-mode");
 
     const currentModelDisplay = document.getElementById(
-      "current-model-display",
+      "current-model-display"
     );
     const existingRefreshButton = document.querySelector(".refresh-button");
     if (existingRefreshButton) existingRefreshButton.remove();
@@ -105,5 +105,9 @@ export function createContext({
     updateContextModeUI();
   }
 
-  return { updateContextModeUI, cycleContextMode, clearShortcutMode: clearShortcutState };
+  return {
+    updateContextModeUI,
+    cycleContextMode,
+    clearShortcutMode: clearShortcutState,
+  };
 }

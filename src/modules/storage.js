@@ -1,4 +1,9 @@
-export function createStorage({ currentTabId, conversationHistory, MAX_MESSAGES_PER_TAB, MAX_TABS_TO_STORE }) {
+export function createStorage({
+  currentTabId,
+  conversationHistory,
+  MAX_MESSAGES_PER_TAB,
+  MAX_TABS_TO_STORE,
+}) {
   function cleanupOldConversations() {
     // Returns a promise so callers (and tests) can await completion even though
     // the underlying chrome.storage API is callback-based.
@@ -12,7 +17,7 @@ export function createStorage({ currentTabId, conversationHistory, MAX_MESSAGES_
       };
       chrome.storage.local.get(null, (result) => {
         const conversationKeys = Object.keys(result || {}).filter((key) =>
-          key.startsWith("conversationHistory_"),
+          key.startsWith("conversationHistory_")
         );
 
         if (conversationKeys.length <= MAX_TABS_TO_STORE) {
@@ -28,7 +33,7 @@ export function createStorage({ currentTabId, conversationHistory, MAX_MESSAGES_
 
         const keysToRemove = sortedKeys.slice(
           0,
-          conversationKeys.length - MAX_TABS_TO_STORE,
+          conversationKeys.length - MAX_TABS_TO_STORE
         );
         chrome.storage.local.remove(keysToRemove, finish);
         // Fall back for mocks that remove synchronously without invoking the
@@ -50,7 +55,7 @@ export function createStorage({ currentTabId, conversationHistory, MAX_MESSAGES_
   async function saveConversationHistory() {
     if (!currentTabId()) return;
     const sanitized = conversationHistory().map((msg) => {
-      const { images, ...rest } = msg;
+      const { images: _images, ...rest } = msg;
       return rest;
     });
     await chrome.storage.local.set({
@@ -58,5 +63,9 @@ export function createStorage({ currentTabId, conversationHistory, MAX_MESSAGES_
     });
   }
 
-  return { cleanupOldConversations, limitMessageHistory, saveConversationHistory };
+  return {
+    cleanupOldConversations,
+    limitMessageHistory,
+    saveConversationHistory,
+  };
 }

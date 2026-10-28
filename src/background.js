@@ -1,5 +1,5 @@
 // Handle tab removal to clean up chat history
-chrome.tabs.onRemoved.addListener(async (tabId, removeInfo) => {
+chrome.tabs.onRemoved.addListener(async (tabId, _removeInfo) => {
   try {
     // Clean up chat history for the closed tab
     const storageKey = `conversationHistory_${tabId}`;

@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 
 const modulesDir = join(
   dirname(fileURLToPath(import.meta.url)),
-  "../src/modules",
+  "../src/modules"
 );
 
 export async function importSrcModules(names) {
@@ -15,7 +15,7 @@ export async function importSrcModules(names) {
   for (const name of names) {
     const text = readFileSync(join(modulesDir, `${name}.js`), "utf8").replace(
       /from "(\.\/[^"]+)\.js"/g,
-      'from "$1.mjs"',
+      'from "$1.mjs"'
     );
     writeFileSync(join(tmpDir, `${name}.mjs`), text);
   }

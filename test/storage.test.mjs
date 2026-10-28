@@ -23,13 +23,17 @@ describe("storage", () => {
             }
             if (Array.isArray(keys)) {
               const out = {};
-              keys.forEach((k) => { if (k in store) out[k] = store[k]; });
+              keys.forEach((k) => {
+                if (k in store) out[k] = store[k];
+              });
               cb(out);
               return;
             }
             if (keys && typeof keys === "object") {
               const out = { ...keys };
-              Object.keys(keys).forEach((k) => { if (k in store) out[k] = store[k]; });
+              Object.keys(keys).forEach((k) => {
+                if (k in store) out[k] = store[k];
+              });
               cb(out);
               return;
             }
@@ -60,7 +64,9 @@ describe("storage", () => {
   });
 
   it("strips images when saving conversation history", async () => {
-    const history = [{ content: "hi", images: ["data:image/png;base64,abc"], role: "user" }];
+    const history = [
+      { content: "hi", images: ["data:image/png;base64,abc"], role: "user" },
+    ];
     const { storage } = await importSrcModules(["storage"]);
     const s = storage.createStorage({
       currentTabId: () => currentTabId,
@@ -69,7 +75,9 @@ describe("storage", () => {
       MAX_TABS_TO_STORE: 10,
     });
     await s.saveConversationHistory();
-    assert.deepEqual(store.conversationHistory_1, [{ content: "hi", role: "user" }]);
+    assert.deepEqual(store.conversationHistory_1, [
+      { content: "hi", role: "user" },
+    ]);
   });
 
   it("cleans up old conversations beyond the store limit", async () => {
@@ -84,7 +92,9 @@ describe("storage", () => {
       MAX_TABS_TO_STORE: 1,
     });
     await s.cleanupOldConversations();
-    const keys = Object.keys(store).filter((k) => k.startsWith("conversationHistory_"));
+    const keys = Object.keys(store).filter((k) =>
+      k.startsWith("conversationHistory_")
+    );
     assert.equal(keys.length, 1);
     assert.ok(store.conversationHistory_3);
   });
