@@ -258,6 +258,15 @@ export async function fetchStreamingReply({
 }) {
   const supportsVision = modelSupportsVision(model);
 
+  const resolvedSignal =
+    signal instanceof AbortSignal
+      ? signal
+      : abortSignal instanceof AbortSignal
+        ? abortSignal
+        : (abortController && abortController.signal instanceof AbortSignal
+            ? abortController.signal
+            : (controller && controller.signal instanceof AbortSignal ? controller.signal : undefined));
+
   // web_search needs its own Ollama API key (separate from xAI) and is off
   // by default — only mention it to the model when it will actually be
   // offered, otherwise it may pretend to search.

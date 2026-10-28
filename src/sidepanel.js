@@ -907,6 +907,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   async function handleMessageSend() {
     if (currentAbortController) return;
     if (
+      !messageInput.value.trim() &&
       pendingAttachments.length === 0 &&
       pendingFiles.length === 0
     ) {
